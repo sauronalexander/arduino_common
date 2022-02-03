@@ -346,12 +346,13 @@ public:
   }
 
   template <typename MsgType>
-  static void Publish(const MsgType& msg, uint32_t timeout_ms) {
+  static void Write(const MsgType& msg, uint32_t timeout_ms = 0) {
     GetSerial().setTimeout(timeout_ms);
-    Write(GetSerial(), msg);
+    Com::Write(GetSerial(), msg);
   }
 
-  template <typename MsgType>
+  template <typename MsgType,
+      typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>>
   static bool Read(MsgType& msg, uint32_t timeout_ms = 0) {
     if (!GetSerial().available()) {
       return false;
@@ -368,7 +369,24 @@ public:
       char c = GetSerial().read();
       msg.push_back(c);
     }
+    msg.pop_back();
     return msg.empty();
+  }
+
+  template <typename MsgType,
+      typename = std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
+      typename = std::enable_if_t<
+          decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
+  static bool Read(MsgType& msg, uint32_t timeout_ms = 0) {
+    std::string encoded;
+    GetSerial().setTimeout(timeout_ms);
+    while (GetSerial().available()) {
+      char c = GetSerial().read();
+      encoded.push_back(c);
+    }
+    encoded.pop_back();
+    msg.Decode(encoded);
+    return encoded.empty();
   }
 
 private:
@@ -391,12 +409,13 @@ public:
   }
 
   template <typename MsgType>
-  static void Publish(const MsgType& msg, uint32_t timeout_ms) {
+  static void Write(const MsgType& msg, uint32_t timeout_ms = 0) {
     Serial.setTimeout(timeout_ms);
-    Write(Serial, msg);
+    Com::Write(Serial, msg);
   }
 
-  template <typename MsgType>
+  template <typename MsgType,
+      typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>>
   static bool Read(MsgType& msg, uint32_t timeout_ms = 0) {
     if (!Serial.available()) {
       return false;

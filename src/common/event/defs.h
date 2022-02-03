@@ -26,8 +26,8 @@ enum Error : uint8_t {
 struct Event {
   Error error{Error::ERROR_NORMAL};
   LogLevel level{LOGLEVEL_INFO};
-  uint16_t error_code;
-  std::string event_msg;
+  uint16_t error_code{0};
+  std::string event_msg{};
   Time time{Time::FromSec(0)};
 
   void Encode(std::string& msg) const;
