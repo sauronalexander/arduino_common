@@ -3,7 +3,9 @@
 #include <functional>
 #include <vector>
 #include <Wire.h>
+#include <SoftwareSerial.h>
 
+#include "common/com/defs.h"
 #include "common/com/specialized_encoding.h"
 #include "common/stl/string.h"
 #include "common/stl/utility.h"
@@ -326,7 +328,92 @@ public:
 
 namespace UART {
 
+template <uint8_t RX_, uint8_t TX_>
+class SoftwareCom final : public Com {
+public:
+  static constexpr uint8_t RX = RX_;
+  static constexpr uint8_t TX = TX_;
+  SoftwareCom() = delete;
 
+  static void Init(long baud_rate) {
+    [[maybe_unused]] static bool _ = [=]() -> bool {
+      GetSerial().begin(baud_rate);
+      while (!GetSerial()) {}
+      return true;
+    }();
+  }
+
+  template <typename MsgType>
+  static void Publish(const MsgType& msg, uint32_t timeout_ms) {
+    GetSerial().setTimeout(timeout_ms);
+    Write(GetSerial(), msg);
+  }
+
+  template <typename MsgType>
+  static bool Read(MsgType& msg, uint32_t timeout_ms = 0) {
+    if (!GetSerial().available()) {
+      return false;
+    }
+    GetSerial().setTimeout(timeout_ms);
+    Com::Read(GetSerial(), msg, sizeof(MsgType));
+    return true;
+  }
+
+  static bool Read(std::string& msg, uint32_t timeout_ms = 0) {
+    msg.clear();
+    GetSerial().setTimeout(timeout_ms);
+    while (GetSerial().available()) {
+      char c = GetSerial().read();
+      msg.push_back(c);
+    }
+    return msg.empty();
+  }
+
+private:
+  static SoftwareSerial& GetSerial() {
+    static SoftwareSerial serial(RX, TX);
+    return serial;
+  }
+};
+
+class HardwareCom final : public Com {
+public:
+  HardwareCom() = delete;
+
+  static void Init(long baud_rate) {
+    [[maybe_unused]] static bool _ = [&]() -> bool {
+      Serial.begin(baud_rate);
+      while (!Serial) {}
+      return true;
+    }();
+  }
+
+  template <typename MsgType>
+  static void Publish(const MsgType& msg, uint32_t timeout_ms) {
+    Serial.setTimeout(timeout_ms);
+    Write(Serial, msg);
+  }
+
+  template <typename MsgType>
+  static bool Read(MsgType& msg, uint32_t timeout_ms = 0) {
+    if (!Serial.available()) {
+      return false;
+    }
+    Serial.setTimeout(timeout_ms);
+    Com::Read(Serial, msg, sizeof(MsgType));
+    return true;
+  }
+
+  static bool Read(std::string& msg, uint32_t timeout_ms = 0) {
+    msg.clear();
+    Serial.setTimeout(timeout_ms);
+    while (Serial.available()) {
+      char c = Serial.read();
+      msg.push_back(c);
+    }
+    return msg.empty();
+  }
+};
 
 }  // namespace UART
 
