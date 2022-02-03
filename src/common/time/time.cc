@@ -6,6 +6,8 @@
 
 namespace common {
 
+Time Time::last_sync_;
+
 //constexpr uint32_t kSyncTimeThreshold = 10000;
 
 enum TimingSourceEnumerate : size_t {
@@ -48,7 +50,7 @@ void Time::SyncSysTime(uint32_t time_sec, uint32_t time_nsec) {
   //  && abs_diff(Now().Sec(), time) < kSyncTimeThreshold
   if (Get().isrunning()) {
     Get().adjust(DateTime(time_sec));
-    last_sync_ = FromSec(time, time_nsec);
+    last_sync_ = FromSec(time_sec, time_nsec);
   }
 }
 
