@@ -25,9 +25,14 @@ enum Error : uint8_t {
 
 struct Event {
   Error error{Error::ERROR_NORMAL};
+  LogLevel level{LOGLEVEL_INFO};
   uint16_t error_code;
-  std::string msg;
-  Time t{Time::FromSec(0)};
+  std::string event_msg;
+  Time time{Time::FromSec(0)};
+
+  void Encode(std::string& msg) const;
+  void Decode(const std::string& msg);
+  std::string ToJson(uint8_t indent = 0);
 };
 
 }  // namespace common

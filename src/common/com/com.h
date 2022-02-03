@@ -90,7 +90,9 @@ protected:
           std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
       typename = std::nullptr_t>
   static void Write(ComType& com, const MsgType& msg) {
-    com.write(msg.Encode().c_str());
+    std::string encoded_msg;
+    msg.Encode(encoded_msg);
+    com.write(encoded_msg.c_str(), encoded_msg.size());
     com.write('\0');
   }
 
