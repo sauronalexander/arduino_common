@@ -22,8 +22,8 @@ public:
 
   static Time Now();
 
-  static bool Init(uint32_t adjust_sec = 0);
-  static void SyncSysTime(uint32_t adjust_sec);
+  static bool Init();
+  static void SyncSysTime(uint32_t time_sec, uint32_t time_nsec = 0);
 
   static Time FromNSec(uint64_t nsec) {
     return Time(nsec / kNsToS, nsec % kNsToS);

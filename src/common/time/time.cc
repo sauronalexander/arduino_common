@@ -6,6 +6,8 @@
 
 namespace common {
 
+//constexpr uint32_t kSyncTimeThreshold = 10000;
+
 enum TimingSourceEnumerate : size_t {
   ARDUINO_TIME = 0,
   INTERNET_TIME = 1,
@@ -18,43 +20,6 @@ struct TimeSource {
   virtual Time Sync(const Time&) = 0;
 };
 
-//auto TimingSourceStore() ->
-//std::array<std::auto_ptr<TimeSource>, TimingSourceEnumerate::TimingSourceEnumerateSize>& {
-//  static std::array<std::auto_ptr<TimeSource>,
-//                    TimingSourceEnumerate::TimingSourceEnumerateSize> sources;
-//  return sources;
-//}
-
-struct DS1307 final : public TimeSource {
-  DS1307() = default;
-  Time Now() override {
-    return Time::FromSec(rtc.now().unixtime());
-  }
-
-  Time Sync(const Time& other) override {
-    rtc.adjust(DateTime(other.Sec()));
-    return other;
-  }
-  RTC_DS1307 rtc;
-};
-
-struct InternetTime final : public TimeSource {
-  Time Now() override {
-    return Time::FromSec(0);
-  }
-  Time Sync(const Time& other) override {
-    return Now();
-  }
-};
-
-//struct ArduinoTime final : public TimeSource {
-//  Time Now() override {
-//    return base_time +
-//  }
-//
-//  Time base_time;
-//}
-
 Time& GetArduinoTime() {
   static Time t = Time::FromSec(0, 0);
   return t;
@@ -63,24 +28,28 @@ Time& GetArduinoTime() {
 void SyncAll() {
 
 }
+
 RTC_DS1307& Get() {
   static RTC_DS1307 rtc;
   return rtc;
 }
 
-bool Time::Init(uint32_t adjust_sec) {
+bool Time::Init() {
   if (!Get().begin()) {
     return false;
-  }
-  if (!Get().isrunning() || adjust_sec) {
-    Get().adjust(DateTime(adjust_sec));
   }
   return true;
 }
 
-void Time::SyncSysTime(uint32_t adjust_sec) {
-
-//  GetArduinoTime() += Time::FromSec();
+void Time::SyncSysTime(uint32_t time_sec, uint32_t time_nsec) {
+//  auto abs_diff = [](uint32_t a, uint32_t b) {
+//    return a > b ? a - b : b - a;
+//  };
+  //  && abs_diff(Now().Sec(), time) < kSyncTimeThreshold
+  if (Get().isrunning()) {
+    Get().adjust(DateTime(time_sec));
+    last_sync_ = FromSec(time, time_nsec);
+  }
 }
 
 Time Time::Now() {
