@@ -1,0 +1,9 @@
+set(CMAKE_CXX_STANDARD 17)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../arduino-stl/src)
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../LiquidCrystal/src")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../SD/src")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../Adafruit_BusIO")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../RTClib/src")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../DHT")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../ArxTypeTraits")
