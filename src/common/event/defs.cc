@@ -37,4 +37,9 @@ void Event::Decode(const std::string& msg) {
   event_msg = msg.substr(8, msg.size() - 8);
 }
 
+std::string Event::ToJson(uint8_t indent) const {
+  std::string ret;
+  return ret;
+}
+
 }  // namespace common

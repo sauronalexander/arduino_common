@@ -27,12 +27,12 @@ struct Event {
   Error error{Error::ERROR_NORMAL};
   LogLevel level{LOGLEVEL_INFO};
   uint16_t error_code{0};
-  std::string event_msg{};
+  std::string event_msg{""};
   Time time{Time::FromSec(0)};
 
   void Encode(std::string& msg) const;
   void Decode(const std::string& msg);
-  std::string ToJson(uint8_t indent = 0);
+  std::string ToJson(uint8_t indent = 0) const;
 };
 
 }  // namespace common
