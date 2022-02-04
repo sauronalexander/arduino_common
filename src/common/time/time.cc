@@ -48,10 +48,8 @@ void Time::SyncSysTime(uint32_t time_sec, uint32_t time_nsec) {
 //    return a > b ? a - b : b - a;
 //  };
   //  && abs_diff(Now().Sec(), time) < kSyncTimeThreshold
-  if (Get().isrunning()) {
-    Get().adjust(DateTime(time_sec));
-    last_sync_ = FromSec(time_sec, time_nsec);
-  }
+  Get().adjust(DateTime(time_sec));
+  last_sync_ = FromSec(time_sec, time_nsec);
 }
 
 Time Time::Now() {
