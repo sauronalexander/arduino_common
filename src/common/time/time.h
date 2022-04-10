@@ -45,7 +45,12 @@ public:
     return static_cast<uint64_t>(sec_) * kNsToS + static_cast<uint64_t>(nsec_);
   }
 
-  std::string ToString() const;
+  enum TimeOption {
+    TIMESTAMP_BASIC, //!< `-03-23 01:03:52`
+    TIMESTAMP_ISO, //!< `YYYY-MM-DDThh:mm:ss`
+  };
+
+  std::string ToString(TimeOption opt = TimeOption::TIMESTAMP_BASIC) const;
 
   Time& operator+=(const Time& other) {
     this->sec_ += other.sec_;

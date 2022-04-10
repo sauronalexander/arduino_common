@@ -5,6 +5,7 @@
 #include <array>
 #include <memory>
 #include <time.h>
+#include <RTClib.h>
 
 namespace common {
 
@@ -53,12 +54,22 @@ void Time::SyncSysTime(uint32_t time_sec, uint32_t time_nsec) {
 Time Time::Now() {
   return Time::FromSec(GetDS3232RTC().get());
 }
-std::string Time::ToString() const {
-  char buf[sizeof "0000-00-00T00:00:00"];
+
+std::string Time::ToString(Time::TimeOption opt) const {
+  char buf[sizeof "YYYY-MM-DDThh:mm:ss"];
   uint32_t time_from_2000 = sec_ - kSecondsFrom1970To2000;
   strftime(buf, sizeof buf,
            "%FT%T", gmtime(&time_from_2000));
-  return std::string(buf);
+
+  switch (opt) {
+    case Time::TimeOption::TIMESTAMP_ISO: {
+      return std::string(buf);
+    }
+    case Time::TimeOption::TIMESTAMP_BASIC: {
+      return std::string(buf + sizeof "YYYY" - 1);
+    }
+  }
+  return std::string();
 }
 
 }  // namespace common
