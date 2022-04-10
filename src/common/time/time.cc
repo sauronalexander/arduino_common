@@ -1,8 +1,10 @@
 #include "common/time/time.h"
 
+#include <DS3232RTC.h>
+
 #include <array>
 #include <memory>
-#include <utility>
+#include <time.h>
 
 namespace common {
 
@@ -10,11 +12,13 @@ Time Time::last_sync_;
 
 //constexpr uint32_t kSyncTimeThreshold = 10000;
 
+constexpr uint32_t kSecondsFrom1970To2000 = 946684800;
+
 enum TimingSourceEnumerate : size_t {
-  ARDUINO_TIME = 0,
-  INTERNET_TIME = 1,
-  DS1307 = 2,
-  TimingSourceEnumerateSize = 3,
+  TimingSourceEnumerate_ARDUINO_TIME = 0,
+  TimingSourceEnumerate_INTERNET_TIME = 1,
+  TimingSourceEnumerate_DS3232RTC = 2,
+  SIZE = 3,
 };
 
 struct TimeSource {
@@ -31,29 +35,30 @@ void SyncAll() {
 
 }
 
-RTC_DS1307& Get() {
-  static RTC_DS1307 rtc;
+DS3232RTC& GetDS3232RTC() {
+  static DS3232RTC rtc;
   return rtc;
 }
 
 bool Time::Init() {
-  if (!Get().begin()) {
-    return false;
-  }
-  return true;
+  GetDS3232RTC().begin();
+  setSyncProvider(GetDS3232RTC().get);
+  return timeStatus() == timeSet;
 }
 
 void Time::SyncSysTime(uint32_t time_sec, uint32_t time_nsec) {
-//  auto abs_diff = [](uint32_t a, uint32_t b) {
-//    return a > b ? a - b : b - a;
-//  };
-  //  && abs_diff(Now().Sec(), time) < kSyncTimeThreshold
-  Get().adjust(DateTime(time_sec));
-  last_sync_ = FromSec(time_sec, time_nsec);
+  GetDS3232RTC().set(time_sec);
 }
 
 Time Time::Now() {
-  return Time::FromSec(Get().now().unixtime());
+  return Time::FromSec(GetDS3232RTC().get());
+}
+std::string Time::ToString() const {
+  char buf[sizeof "0000-00-00T00:00:00"];
+  uint32_t time_from_2000 = sec_ - kSecondsFrom1970To2000;
+  strftime(buf, sizeof buf,
+           "%FT%T", gmtime(&time_from_2000));
+  return std::string(buf);
 }
 
 }  // namespace common

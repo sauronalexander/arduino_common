@@ -100,6 +100,7 @@ protected:
   static void Read(ComType& com, std::string& msg, int bytes) {
     msg.resize(bytes);
     com.readBytes(&msg[0], bytes);
+    msg.pop_back();
   }
 
   template <typename MsgType, typename ComType,
@@ -108,7 +109,7 @@ protected:
                 std::enable_if_t<
                     decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
   static void Read(ComType& com, MsgType& msg, int bytes) {
-    char buffer[sizeof(MsgType)];
+    char buffer[sizeof(MsgType) + 1];
     com.readBytes(buffer, bytes);
     common::com::Decode(buffer, msg);
   }
@@ -243,7 +244,7 @@ public:
   Subscriber() = delete;
 
   template<typename MsgType>
-  static void RegisterCallback(void (*callback)(MsgType &&, int)) {
+  static void RegisterCallback(void (*callback)(const MsgType &, int)) {
     CallbackFunctionStore<MsgType>() = callback;
     auto _callback = [](int bytes) {
       if (Wire.available()) {
@@ -259,7 +260,7 @@ public:
 
   template<class ClassType, typename MsgType>
   static void RegisterCallback(
-      ClassType *class_ptr, void (ClassType::*callback)(MsgType &&, int)) {
+      ClassType *class_ptr, void (ClassType::*callback)(const MsgType &, int)) {
     ClassCallbackMethodStore<ClassType, MsgType>() = callback;
     ClassPtrStore<ClassType>() = class_ptr;
     auto _callback = [](int bytes) {
@@ -279,25 +280,25 @@ public:
 private:
   template<typename MsgType>
   struct FunctionTypeImpl {
-    typedef void (*FunctionPtrType)(MsgType &&, int);
+    typedef void (*FunctionPtrType)(const MsgType &, int);
   };
 
   template<class ClassType, typename MsgType>
   struct ClassMethodImpl {
-    typedef void (ClassType::*ClassMethodPtrType)(MsgType &&, int);
+    typedef void (ClassType::*ClassMethodPtrType)(const MsgType &, int);
   };
 
   template<typename MsgType>
   static auto CallbackFunctionStore()
   -> typename FunctionTypeImpl<MsgType>::FunctionPtrType & {
-    static void (*local_callback)(MsgType &&, int);
+    static void (*local_callback)(const MsgType &, int);
     return local_callback;
   }
 
   template<class ClassType, typename MsgType>
   static auto ClassCallbackMethodStore()
   -> typename ClassMethodImpl<ClassType, MsgType>::ClassMethodPtrType & {
-    static void (ClassType::*local_callback)(MsgType &&, int);
+    static void (ClassType::*local_callback)(const MsgType &, int);
     return local_callback;
   }
 

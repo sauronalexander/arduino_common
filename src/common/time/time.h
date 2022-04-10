@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 #include <time.h>
-#include <RTClib.h>
 
 #include "common/stl/string.h"
 
@@ -46,16 +45,8 @@ public:
     return static_cast<uint64_t>(sec_) * kNsToS + static_cast<uint64_t>(nsec_);
   }
 
-  inline std::string ToString(
-      DateTime::timestampOpt opt
-          = DateTime::timestampOpt::TIMESTAMP_FULL) const {
-    return std::string(ToDateTime().timestamp(opt).c_str());
-  }
+  std::string ToString() const;
 
-  inline DateTime ToDateTime() const {
-    return DateTime(sec_ / kNsToS);
-  }
-  
   Time& operator+=(const Time& other) {
     this->sec_ += other.sec_;
     this->nsec_ += other.nsec_;

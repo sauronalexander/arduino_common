@@ -22,8 +22,14 @@ public:
     lcd_.begin(Col, Row, DotSize);
   }
 
+  template <typename T, typename = decltype(&T::ToString)>
+  inline void Log(const T& msg) {
+    Log(msg.ToString());
+  }
+
   template <typename T,
-            typename = std::enable_if_t<!std::is_same<T, std::string>::value>>
+            typename = std::enable_if_t<!std::is_same<T, std::string>::value>,
+            typename = decltype(std::to_string(std::declval<T>()))>
   inline void Log(const T &msg) {
     Log(std::to_string(msg));
   }
