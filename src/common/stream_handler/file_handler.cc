@@ -3,6 +3,10 @@
 namespace common {
 
 FileHandler::FileHandlerData::FileHandlerData(const char *filename) {
+  ::common::filesystem::Path path(filename);
+  if (!::common::filesystem::Exists(path.directory())) {
+    ::common::filesystem::mkdir(path.directory());
+  }
   file = SD.open(filename, FILE_WRITE);
 }
 

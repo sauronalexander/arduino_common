@@ -15,6 +15,11 @@ public:
     Path(const std::string& path) {
       path_ = path;
     }
+
+    Path(const char* path) {
+      path_ = std::string(path);
+    }
+
     Path& operator/=(const char* other) {
       path_ += "/";
       path_ += other;
@@ -36,6 +41,14 @@ public:
       return path_;
     }
 
+    const std::string directory() const {
+      auto pos = path_.find_last_of('/');
+      if (pos != std::string::npos) {
+        return path_.substr(0, pos);
+      }
+      return std::string();
+    }
+
     const char* c_str() const {
       return path_.c_str();
     }
@@ -53,13 +66,10 @@ public:
     std::string path_{};
   };
 
-
-  // Adafruit SD shields and modules: pin 10
-  static constexpr int32_t kChipSelect = 10;
   static constexpr unsigned int kMaxBufferSize = 1024;
 
 
-  static bool Init();
+  static bool Init(int chip_select);
   static bool Exists(const std::string& path);
   static bool mkdir(const std::string& path);
   static bool rm(const std::string& path);

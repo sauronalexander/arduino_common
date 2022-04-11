@@ -8,8 +8,9 @@ bool& Initialized() {
   return initialized;
 }
 
-bool filesystem::Init() {
-  Initialized() = SD.begin(kChipSelect);
+bool filesystem::Init(int chip_select) {
+  pinMode(chip_select, OUTPUT);
+  Initialized() = SD.begin(chip_select);
   return Initialized();
 }
 
@@ -34,12 +35,14 @@ bool filesystem::rm(const std::string& path) {
   return SD.remove(path.c_str());
 }
 
-std::vector<std::string> filesystem::ls(const std::string& path, bool resursive) {
+std::vector<std::string> filesystem::ls(
+    const std::string& path, bool resursive) {
   std::vector<std::string> dirs;
   if (!Initialized()) {
     return dirs;
   }
-  ls(SD.open(path.c_str(), O_RDONLY), std::string(), resursive, dirs);
+  ls(SD.open(path.c_str(), O_RDONLY),
+     std::string(), resursive, dirs);
   return dirs;
 }
 
