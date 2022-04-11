@@ -38,92 +38,116 @@ public:
     }();
     return initialized;
   }
+
 protected:
+  template <typename ComType>
+  static void Drain(ComType& com) {
+    while (com.available()) {
+      com.read();
+    }
+  }
+
   using StringLengthSize = unsigned int;
 
-  template <typename MsgType>
+  template<typename MsgType>
   static auto HasEncodingMethodImpl(...) -> std::false_type;
 
-  template <typename MsgType,
-            typename = decltype(&MsgType::Encode),
-            typename = decltype(&MsgType::Decode)>
+  template<typename MsgType,
+      typename = decltype(&MsgType::Encode),
+      typename = decltype(&MsgType::Decode)>
   static auto HasEncodingMethodImpl(int) -> std::true_type;
 
   // Specify namespace to prevent ADL failure
-  template <typename MsgType,
-            typename =
-                decltype(common::com::Encode(std::declval<const MsgType&>(),
-                                             std::declval<char*>())),
-            typename =
-                decltype(common::com::Decode(std::declval<const char* const>(),
-                                             std::declval<MsgType&>())),
+  template<typename MsgType,
+      typename =
+      decltype(common::com::Encode(std::declval<const MsgType &>(),
+                                   std::declval<char *>())),
+      typename =
+      decltype(common::com::Decode(std::declval<const char *const>(),
+                                   std::declval<MsgType &>())),
       typename = std::nullptr_t>
   static auto HasEncodingMethodImpl(int) -> std::true_type;
 
-  template <typename ComType>
-  static void Write(ComType& com, const char* msg) {
+  template<typename ComType>
+  static void Write(ComType &com, const char *msg) {
     com.write(msg);
-    com.write('\0');
+    com.flush();
   }
 
-  template <typename ComType>
-  static void Write(ComType& com, const std::string& msg) {
+  template<typename ComType>
+  static void Write(ComType &com, const std::string &msg) {
     com.write(msg.c_str(), msg.length());
-    com.write('\0');
+    com.flush();
   }
 
-  template <typename ComType, typename MsgType,
-            typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>,
-            typename = std::enable_if_t<
-                decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
-  static void Write(ComType& com, const MsgType& msg) {
+  template<typename ComType, typename MsgType,
+      typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>,
+      typename = std::enable_if_t<
+          decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
+  static void Write(ComType &com, const MsgType &msg) {
     char buffer[sizeof(MsgType)];
     common::com::Encode(msg, buffer);
     com.write(buffer, sizeof(MsgType));
-    com.write('\0');
+    com.flush();
   }
 
-  template <typename ComType, typename MsgType,
+  template<typename ComType, typename MsgType,
       typename = std::enable_if_t<
           decltype(HasEncodingMethodImpl<MsgType>(0))::value>,
       typename =
-          std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
+      std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
       typename = std::nullptr_t>
-  static void Write(ComType& com, const MsgType& msg) {
+  static void Write(ComType &com, const MsgType &msg) {
     std::string encoded_msg;
     msg.Encode(encoded_msg);
     com.write(encoded_msg.c_str(), encoded_msg.size());
-    com.write('\0');
+    com.flush();
   }
 
-  template <typename ComType>
-  static void Read(ComType& com, std::string& msg, int bytes) {
+  template<typename ComType>
+  static void Read(ComType &com, std::string &msg, int bytes) {
     msg.resize(bytes);
     com.readBytes(&msg[0], bytes);
-    msg.pop_back();
+    Drain(com);
   }
 
-  template <typename MsgType, typename ComType,
-            typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>,
-            typename =
-                std::enable_if_t<
-                    decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
-  static void Read(ComType& com, MsgType& msg, int bytes) {
-    char buffer[sizeof(MsgType) + 1];
+  template<typename MsgType, typename ComType,
+      typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>,
+      typename =
+      std::enable_if_t<
+          decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
+  static void Read(ComType &com, MsgType &msg, int bytes) {
+    char buffer[sizeof(MsgType)];
     com.readBytes(buffer, bytes);
     common::com::Decode(buffer, msg);
+    Drain(com);
   }
 
-  template <typename MsgType, typename ComType,
-            typename = std::enable_if_t<
-                decltype(HasEncodingMethodImpl<MsgType>(0))::value>,
-            typename =
-                std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
-            typename = std::nullptr_t>
-  static void Read(ComType& com, MsgType& msg, int bytes) {
+  template<typename MsgType, typename ComType,
+      typename = std::enable_if_t<
+          decltype(HasEncodingMethodImpl<MsgType>(0))::value>,
+      typename =
+      std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
+      typename = std::nullptr_t>
+  static void Read(ComType &com, MsgType &msg, int bytes) {
     std::string msg_str;
     Read(com, msg_str, bytes);
     msg.Decode(msg_str);
+    Drain(com);
+  }
+
+  template<typename ComType>
+  static bool CheckAndWaitForMsgToBeAvilable(
+      ComType &com, bool blocking,
+      uint32_t timeout_ms, uint32_t delay_time_ms) {
+    uint32_t tick{0};
+    while (!com.available()) {
+      if (!blocking || (timeout_ms && ++tick * delay_time_ms >= timeout_ms)) {
+        return false;
+      }
+      delay(delay_time_ms);
+    }
+    return true;
   }
 };
 
@@ -331,8 +355,72 @@ public:
 
 namespace UART {
 
+constexpr uint16_t kWaitTimeMs = 20;
+
+namespace internal {
+
+template <typename SerialType>
+class UARTComBase : public Com {
+protected:
+  template <typename MsgType>
+  static void Write(SerialType& com,
+                    const MsgType& msg, uint32_t timeout_ms) {
+    com.setTimeout(timeout_ms);
+    Com::Write(com, msg);
+  }
+
+  template <typename MsgType,
+      typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>>
+  static bool Read(SerialType& com, MsgType& msg,
+                   bool blocking, uint32_t timeout_ms) {
+    if (CheckAndWaitForMsgToBeAvilable(
+        com, blocking, timeout_ms, kWaitTimeMs)) {
+      com.setTimeout(timeout_ms);
+      Com::Read(com, msg, sizeof(MsgType));
+      return true;
+    }
+    return false;
+  }
+
+  static bool Read(SerialType& com, std::string& msg,
+                   bool blocking, uint32_t timeout_ms) {
+    msg.clear();
+    if (CheckAndWaitForMsgToBeAvilable(
+        com, blocking, timeout_ms, kWaitTimeMs)) {
+      com.setTimeout(timeout_ms);
+      while (com.available()) {
+        char c = com.read();
+        msg.push_back(c);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  template <typename MsgType,
+      typename = std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
+      typename = std::enable_if_t<
+          decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
+  static bool Read(SerialType& com, MsgType& msg,
+                   bool blocking, uint32_t timeout_ms) {
+    if (CheckAndWaitForMsgToBeAvilable(
+        com, blocking, timeout_ms, kWaitTimeMs)) {
+      std::string encoded;
+      com.setTimeout(timeout_ms);
+      while (com.available()) {
+        char c = com.read();
+        encoded.push_back(c);
+      }
+      return true;
+    }
+    return false;
+  }
+};
+
+}  // namespace internal
+
 template <uint8_t RX_, uint8_t TX_>
-class SoftwareCom final : public Com {
+class SoftwareCom final : public internal::UARTComBase<SoftwareSerial> {
 public:
   static constexpr uint8_t RX = RX_;
   static constexpr uint8_t TX = TX_;
@@ -348,46 +436,14 @@ public:
 
   template <typename MsgType>
   static void Write(const MsgType& msg, uint32_t timeout_ms = 0) {
-    GetSerial().setTimeout(timeout_ms);
-    Com::Write(GetSerial(), msg);
+    internal::UARTComBase<SoftwareSerial>::Write(GetSerial(), msg, timeout_ms);
   }
 
-  template <typename MsgType,
-      typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>>
-  static bool Read(MsgType& msg, uint32_t timeout_ms = 0) {
-    if (!GetSerial().available()) {
-      return false;
-    }
-    GetSerial().setTimeout(timeout_ms);
-    Com::Read(GetSerial(), msg, sizeof(MsgType));
-    return true;
-  }
-
-  static bool Read(std::string& msg, uint32_t timeout_ms = 0) {
-    msg.clear();
-    GetSerial().setTimeout(timeout_ms);
-    while (GetSerial().available()) {
-      char c = GetSerial().read();
-      msg.push_back(c);
-    }
-    msg.pop_back();
-    return msg.empty();
-  }
-
-  template <typename MsgType,
-      typename = std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
-      typename = std::enable_if_t<
-          decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
-  static bool Read(MsgType& msg, uint32_t timeout_ms = 0) {
-    std::string encoded;
-    GetSerial().setTimeout(timeout_ms);
-    while (GetSerial().available()) {
-      char c = GetSerial().read();
-      encoded.push_back(c);
-    }
-    encoded.pop_back();
-    msg.Decode(encoded);
-    return encoded.empty();
+  template <typename MsgType>
+  static bool Read(MsgType& msg,
+                   bool blocking = false, uint32_t timeout_ms = 0) {
+  return internal::UARTComBase<SoftwareSerial>::Read(
+      GetSerial(), msg, blocking, timeout_ms);
   }
 
 private:
@@ -397,43 +453,60 @@ private:
   }
 };
 
-class HardwareCom final : public Com {
+template <uint8_t SerialPort = 0>
+class HardwareCom final : public internal::UARTComBase<HardwareSerial> {
 public:
+  static_assert(SerialPort <= 3, "Serial Port does not exist");
   HardwareCom() = delete;
 
   static void Init(long baud_rate) {
-    [[maybe_unused]] static bool _ = [&]() -> bool {
-      Serial.begin(baud_rate);
-      while (!Serial) {}
+    [[maybe_unused]] static bool status = [&]() -> bool {
+      switch (SerialPort) {
+        case 0: {
+          GetHardwareSerialPtr() = &Serial;
+          break;
+        }
+        case 1: {
+          GetHardwareSerialPtr() = &Serial1;
+          break;
+        }
+        case 2: {
+          GetHardwareSerialPtr() = &Serial2;
+          break;
+        }
+        case 3: {
+          GetHardwareSerialPtr() = &Serial3;
+          break;
+        }
+        default: {
+          return false;
+        }
+      }
+      GetHardwareSerialPtr()->begin(baud_rate);
+      while (!(*GetHardwareSerialPtr())) {}
+
       return true;
     }();
   }
 
   template <typename MsgType>
   static void Write(const MsgType& msg, uint32_t timeout_ms = 0) {
-    Serial.setTimeout(timeout_ms);
-    Com::Write(Serial, msg);
+    internal::UARTComBase<HardwareSerial>::Write(
+        *GetHardwareSerialPtr(), msg, timeout_ms);
   }
 
   template <typename MsgType,
       typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>>
-  static bool Read(MsgType& msg, uint32_t timeout_ms = 0) {
-    if (!Serial.available()) {
-      return false;
-    }
-    Serial.setTimeout(timeout_ms);
-    Com::Read(Serial, msg, sizeof(MsgType));
-    return true;
+  static bool Read(MsgType& msg, bool blocking = false,
+                   uint32_t timeout_ms = 0) {
+    return internal::UARTComBase<HardwareSerial>::Read(
+        *GetHardwareSerialPtr(), msg, blocking, timeout_ms);
   }
 
-  static bool Read(std::string& msg, uint32_t timeout_ms = 0) {
-    msg.clear();
-    Serial.setTimeout(timeout_ms);
-    while (Serial.available()) {
-      char c = Serial.read();
-      msg.push_back(c);
-    }
-    return msg.empty();
+private:
+  static HardwareSerial*& GetHardwareSerialPtr() {
+    static HardwareSerial* ptr;
+    return ptr;
   }
 };
 
