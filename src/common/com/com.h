@@ -459,7 +459,7 @@ public:
   static_assert(SerialPort <= 3, "Serial Port does not exist");
   HardwareCom() = delete;
 
-  static void Init(long baud_rate) {
+  static bool Init(long baud_rate) {
     [[maybe_unused]] static bool status = [&]() -> bool {
       switch (SerialPort) {
         case 0: {
@@ -487,6 +487,7 @@ public:
 
       return true;
     }();
+    return status;
   }
 
   template <typename MsgType>
