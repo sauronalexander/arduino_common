@@ -1,45 +1,135 @@
 #include "common/event/defs.h"
 
+#include <ArduinoJson.h>
+
 #include "common/com/specialized_encoding.h"
 
 namespace common {
 
 void Event::Encode(std::string& msg) const {
-  msg.clear();
-  msg.resize(event_msg.size() + 8);
+  size_t fixed_size = sizeof(time.Sec()) + sizeof(level) + sizeof(error_code);
+  msg.resize(event_msg.size() + source_name.size()
+             + fixed_size + 2 * sizeof(uint32_t));
 
-  common::com::Encode(static_cast<uint8_t>(error), &msg[0]);
-  common::com::Encode(static_cast<uint8_t>(level), &msg[1]);
-  common::com::Encode(error_code, &msg[2]);
-  common::com::Encode(time.Sec(), &msg[4]);
-  msg.replace(8, event_msg.size(), event_msg.data());
+  std::string time_encoded, level_encoded, error_code_encoded;
+  common::com::Encode(time.Sec(), time_encoded);
+  common::com::Encode(static_cast<uint8_t>(level), level_encoded);
+  common::com::Encode(error_code, error_code_encoded);
+  msg.replace(0, time_encoded.size(), time_encoded);
+  msg.replace(sizeof(time.Sec()),
+              level_encoded.size(), level_encoded);
+  msg.replace(sizeof(time.Sec()) + sizeof(level),
+              error_code_encoded.size(), error_code_encoded);
+  std::string size_encoded;
+  common::com::Encode(static_cast<uint32_t>(source_name.size()), size_encoded);
+  msg.replace(fixed_size, size_encoded.size(), size_encoded);
+  msg.replace(fixed_size + sizeof(uint32_t), source_name.size(), source_name);
+
+  fixed_size += (sizeof(uint32_t) + source_name.size());
+  common::com::Encode(static_cast<uint32_t>(source_name.size()), size_encoded);
+  msg.replace(fixed_size, size_encoded.size(), size_encoded);
+  msg.replace(fixed_size + sizeof(size_t), event_msg.size(), event_msg);
 }
 
 void Event::Decode(const std::string& msg) {
-  {
-    uint8_t tmp{0};
-    common::com::Decode(&msg[0], tmp);
-    error = static_cast<Error>(tmp);
-    common::com::Decode(&msg[1], tmp);
-    level = static_cast<LogLevel>(tmp);
-  }
-  {
-    uint16_t tmp{0};
-    common::com::Decode(&msg[2], tmp);
-    error_code = tmp;
-  }
+  // TODO: Use better serialzation/deserialization methods.
+  uint32_t idx{0};
   {
     uint32_t tmp{0};
-    common::com::Decode(&msg[4], tmp);
+    common::com::Decode(msg.substr(idx, sizeof(tmp)), tmp);
+    idx += sizeof(tmp);
     time = Time::FromSec(tmp);
   }
 
-  event_msg = msg.substr(8, msg.size() - 8);
+  {
+    uint8_t tmp{0};
+    common::com::Decode(msg.substr(idx, sizeof(tmp)), tmp);
+    idx += sizeof(tmp);
+    level = static_cast<LogLevel>(tmp);
+  }
+
+  common::com::Decode(msg.substr(idx, sizeof(error_code)), error_code);
+  idx += (sizeof(error_code) + 1);
+
+  uint32_t str_size;
+  common::com::Decode(msg.substr(idx, sizeof(uint32_t)), str_size);
+  idx += sizeof(uint32_t);
+  source_name = msg.substr(idx, str_size);
+  idx += source_name.size();
+
+  common::com::Decode(msg.substr(idx, sizeof(uint32_t)), str_size);
+  idx += sizeof(uint32_t);
+  event_msg = msg.substr(idx, str_size);
 }
 
-std::string Event::ToJson(uint8_t indent) const {
-  std::string ret;
-  return ret;
+StaticJsonDocument<256> Event::ToJson() const {
+  StaticJsonDocument<256> result;
+  result["metadata"]["error"] = error_code;
+  result["metadata"]["level"] = static_cast<uint8_t>(level);
+  result["metadata"]["name"] = source_name;
+  result["msg"] = event_msg;
+  result["timestamp"]["$date"]["$numberLong"] = time.ToString(
+      common::Time::TimeOption::TIMESTAMP_MS);
+  return result;
+}
+
+void SensorReading::Encode(std::string& msg) const {
+  size_t fixed_size = sizeof(time.Sec()) + sizeof(double);
+  msg.resize(fixed_size + sensor_id.size()
+             + sensor_type.size() + 2 * sizeof(uint32_t));
+
+  std::string time_encoded, reading_encoded;
+  common::com::Encode(time.Sec(), time_encoded);
+  common::com::Encode(reading, reading_encoded);
+  msg.replace(0, time_encoded.size(), time_encoded);
+  msg.replace(sizeof(time.Sec()),
+              reading_encoded.size(), reading_encoded);
+
+  std::string size_encoded;
+  common::com::Encode(static_cast<uint32_t>(sensor_id.size()), size_encoded);
+  msg.replace(fixed_size, size_encoded.size(), size_encoded);
+  msg.replace(fixed_size + sizeof(uint32_t), sensor_id.size(), sensor_id);
+
+  fixed_size += (sizeof(uint32_t) + sensor_id.size());
+  common::com::Encode(static_cast<uint32_t>(sensor_type.size()), size_encoded);
+  msg.replace(fixed_size, size_encoded.size(), size_encoded);
+  msg.replace(fixed_size + sizeof(uint32_t), sensor_type.size(), sensor_type);
+}
+
+void SensorReading::Decode(const std::string& msg) {
+  // TODO: Use better serialzation/deserialization methods.
+  uint32_t idx{0};
+  {
+    uint32_t tmp{0};
+    common::com::Decode(msg.substr(idx, sizeof(tmp)), tmp);
+    idx += sizeof(tmp);
+    time = Time::FromSec(tmp);
+  }
+
+  {
+    common::com::Decode(msg.substr(idx, sizeof(reading)), reading);
+    idx += sizeof(reading);
+  }
+
+  uint32_t str_size;
+  common::com::Decode(msg.substr(idx, sizeof(uint32_t)), str_size);
+  idx += sizeof(uint32_t);
+  sensor_id = msg.substr(idx, str_size);
+  idx += sensor_id.size();
+
+  common::com::Decode(msg.substr(idx, sizeof(uint32_t)), str_size);
+  idx += sizeof(uint32_t);
+  sensor_type = msg.substr(idx, str_size);
+}
+
+StaticJsonDocument<128> SensorReading::ToJson() const {
+  StaticJsonDocument<128> result;
+  result["metadata"]["sensor_id"] = sensor_id;
+  result["metadata"]["sensor_type"] = sensor_type;
+  result["data"] = reading;
+  result["timestamp"]["$date"]["$numberLong"] = time.ToString(
+      common::Time::TimeOption::TIMESTAMP_MS);
+  return result;
 }
 
 }  // namespace common

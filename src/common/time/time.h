@@ -36,7 +36,7 @@ public:
     return sec_;
   }
 
-  inline int64_t MSec() const {
+  inline uint64_t MSec() const {
     uint32_t fra_part = nsec_ / kMsToS;
     return sec_ * kMsToS + fra_part;
   }
@@ -48,6 +48,7 @@ public:
   enum TimeOption {
     TIMESTAMP_BASIC, //!< `-03-23 01:03:52`
     TIMESTAMP_ISO, //!< `YYYY-MM-DDThh:mm:ss`
+    TIMESTAMP_MS, //!< `123456789000`
   };
 
   std::string ToString(TimeOption opt = TimeOption::TIMESTAMP_BASIC) const;

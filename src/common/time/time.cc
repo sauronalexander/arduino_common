@@ -68,6 +68,12 @@ std::string Time::ToString(Time::TimeOption opt) const {
     case Time::TimeOption::TIMESTAMP_BASIC: {
       return std::string(buf + sizeof "YYYY" - 1);
     }
+    case Time::TimeOption::TIMESTAMP_MS: {
+      auto ms = nsec_ / kNsToMs;
+      char val[3];
+      sprintf(val, "%03lu", ms);
+      return std::to_string(sec_) + std::string(val);
+    }
   }
   return std::string();
 }
