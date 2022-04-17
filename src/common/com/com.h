@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <functional>
 #include <vector>
 #include <Wire.h>
@@ -7,9 +8,7 @@
 
 #include "common/com/defs.h"
 #include "common/com/specialized_encoding.h"
-#include "common/stl/string.h"
 #include "common/stl/utility.h"
-
 
 /*
  * This service uses I2C / TWI pins to communicate.
@@ -20,6 +19,7 @@
  */
 
 namespace common::com {
+
 
 class Com {
 public:
@@ -39,15 +39,105 @@ public:
     return initialized;
   }
 
-protected:
+private:
+  static constexpr const uint8_t kStrMetadataSize{8};
+
   template <typename ComType>
-  static void Drain(ComType& com) {
-    while (com.available()) {
-      com.read();
+  inline static void WriteBytesAndFlush(
+      ComType &com, const char *data, size_t bytes) {
+    // TODO: add timeout
+    while (!com.availableForWrite()) {}
+    com.write(data, bytes);
+    com.flush();
+  }
+
+  template <typename ComType>
+  static void WriteBytesAndFlush(
+      ComType &com, const char *data, size_t bytes, uint16_t chunk_size) {
+    if (!chunk_size) {
+      WriteBytesAndFlush(com, data, bytes);
+      return;
+    }
+    uint16_t num_chunk = 1 + (bytes - 1) / static_cast<size_t>(chunk_size);
+
+    // Encode metadata
+    {
+      std::string chunk_size_encoded, num_chunk_encoded, bytes_encoded;
+      common::com::Encode(chunk_size, chunk_size_encoded);
+      common::com::Encode(num_chunk, num_chunk_encoded);
+      common::com::Encode(static_cast<uint32_t>(bytes), bytes_encoded);
+      std::string metadata =
+          chunk_size_encoded + num_chunk_encoded + bytes_encoded;
+      WriteBytesAndFlush(com, metadata.c_str(), metadata.size());
+    }
+    uint8_t status;
+    Com::Read(com, status, 0);
+
+    // Encode chunk
+    for (uint16_t i{0}; i < num_chunk; i += (status == 0)) {
+      size_t cur_idx = static_cast<size_t>(i * chunk_size);
+      size_t cur_chunk_size = std::min(chunk_size, bytes - cur_idx);
+      WriteBytesAndFlush(com, data + cur_idx, cur_chunk_size);
+      Com::Read(com, status, 0);
     }
   }
 
-  using StringLengthSize = unsigned int;
+  template <typename ComType>
+  static void ReadBytes(ComType &com, std::string &data,
+                        size_t bytes, uint16_t chunk_size,
+                        uint32_t timeout_ms) {
+    if (!chunk_size) {
+      data.resize(bytes);
+      if (CheckAndWaitForMsgToBeAvilable(com, bytes,true,
+                                         timeout_ms, kWaitTimeMs)) {
+        com.readBytes(&data[0], bytes);
+      }
+      return;
+    }
+
+    size_t available = com.available();
+    std::string metadata(kStrMetadataSize, 0);
+    if (!CheckAndWaitForMsgToBeAvilable(com, kStrMetadataSize, true,
+                                   timeout_ms, kWaitTimeMs)) {
+      return;
+    }
+    com.readBytes(&metadata[0], kStrMetadataSize);
+    uint16_t sender_chunk_size, num_chunk;
+    uint32_t data_len;
+    common::com::Decode(metadata.substr(0, 2), sender_chunk_size);
+    common::com::Decode(metadata.substr(2, 2), num_chunk);
+    common::com::Decode(metadata.substr(4, 4), data_len);
+    if (available != kStrMetadataSize) {
+      com.write(uint8_t(1));
+      com.flush();
+    } else if (sender_chunk_size > chunk_size) {
+      com.write(uint8_t(2));
+      com.flush();
+    } else {
+      com.write(uint8_t(0));
+      com.flush();
+    }
+
+    data.resize(data_len);
+    uint8_t status = {0};
+    for (uint16_t i{0}; i < num_chunk; i += (status == 0)) {
+      size_t idx{i * sender_chunk_size};
+      size_t expected_size = (i + 1) == num_chunk ? data_len - idx :
+                                                    sender_chunk_size;
+      status = 0;
+      if (!CheckAndWaitForMsgToBeAvilable(com, expected_size, true,
+                                          timeout_ms, kWaitTimeMs)) {
+        status = 1;
+      }
+      com.readBytes(&data[idx], expected_size);
+      while (!com.availableForWrite()) {}
+      com.write(status);
+      com.flush();
+    }
+  }
+
+protected:
+  static constexpr const uint16_t kWaitTimeMs{5};
 
   template<typename MsgType>
   static auto HasEncodingMethodImpl(...) -> std::false_type;
@@ -61,34 +151,27 @@ protected:
   template<typename MsgType,
       typename =
       decltype(common::com::Encode(std::declval<const MsgType &>(),
-                                   std::declval<char *>())),
+                                   std::declval<std::string &>())),
       typename =
-      decltype(common::com::Decode(std::declval<const char *const>(),
+      decltype(common::com::Decode(std::declval<const std::string &>(),
                                    std::declval<MsgType &>())),
       typename = std::nullptr_t>
   static auto HasEncodingMethodImpl(int) -> std::true_type;
 
   template<typename ComType>
-  static void Write(ComType &com, const char *msg) {
-    com.write(msg);
-    com.flush();
-  }
-
-  template<typename ComType>
-  static void Write(ComType &com, const std::string &msg) {
-    com.write(msg.c_str(), msg.length());
-    com.flush();
+  inline static void Write(ComType &com,
+                           const std::string &msg, uint16_t chunk_size) {
+    WriteBytesAndFlush(com, msg.c_str(), msg.size(), chunk_size);
   }
 
   template<typename ComType, typename MsgType,
       typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>,
       typename = std::enable_if_t<
           decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
-  static void Write(ComType &com, const MsgType &msg) {
-    char buffer[sizeof(MsgType)];
+  inline static void Write(ComType &com, const MsgType &msg, uint16_t = 0) {
+    std::string buffer;
     common::com::Encode(msg, buffer);
-    com.write(buffer, sizeof(MsgType));
-    com.flush();
+    WriteBytesAndFlush(com, buffer.c_str(), buffer.size(), 0);
   }
 
   template<typename ComType, typename MsgType,
@@ -97,18 +180,18 @@ protected:
       typename =
       std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
       typename = std::nullptr_t>
-  static void Write(ComType &com, const MsgType &msg) {
+  inline static void Write(
+      ComType &com, const MsgType &msg, uint16_t chunk_size) {
     std::string encoded_msg;
-    msg.Encode(encoded_msg);
-    com.write(encoded_msg.c_str(), encoded_msg.size());
-    com.flush();
+    common::com::Encode(msg, encoded_msg);
+    WriteBytesAndFlush(com, encoded_msg.c_str(),
+                       encoded_msg.size(), chunk_size);
   }
 
   template<typename ComType>
-  static void Read(ComType &com, std::string &msg, int bytes) {
-    msg.resize(bytes);
-    com.readBytes(&msg[0], bytes);
-    Drain(com);
+  inline static void Read(ComType &com, std::string &msg, uint32_t timeout_ms,
+                          int bytes, uint16_t chunk_size) {
+    ReadBytes(com, msg, bytes, chunk_size, timeout_ms);
   }
 
   template<typename MsgType, typename ComType,
@@ -116,11 +199,11 @@ protected:
       typename =
       std::enable_if_t<
           decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
-  static void Read(ComType &com, MsgType &msg, int bytes) {
-    char buffer[sizeof(MsgType)];
-    com.readBytes(buffer, bytes);
+  inline static void Read(ComType &com, MsgType &msg, uint32_t timeout_ms,
+                          int = 0, uint16_t = 0) {
+    std::string buffer;
+    ReadBytes(com, buffer, sizeof(MsgType), 0, 0);
     common::com::Decode(buffer, msg);
-    Drain(com);
   }
 
   template<typename MsgType, typename ComType,
@@ -129,19 +212,19 @@ protected:
       typename =
       std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
       typename = std::nullptr_t>
-  static void Read(ComType &com, MsgType &msg, int bytes) {
+  inline static void Read(ComType &com, MsgType &msg, uint32_t timeout_ms,
+                          int bytes, uint16_t chunk_size) {
     std::string msg_str;
-    Read(com, msg_str, bytes);
-    msg.Decode(msg_str);
-    Drain(com);
+    Read(com, msg_str, bytes, chunk_size, timeout_ms);
+    common::com::Decode(msg_str, msg);
   }
 
   template<typename ComType>
   static bool CheckAndWaitForMsgToBeAvilable(
-      ComType &com, bool blocking,
+      ComType &com, size_t expected_bytes, bool blocking,
       uint32_t timeout_ms, uint32_t delay_time_ms) {
     uint32_t tick{0};
-    while (!com.available()) {
+    while (static_cast<size_t>(com.available()) < expected_bytes) {
       if (!blocking || (timeout_ms && ++tick * delay_time_ms >= timeout_ms)) {
         return false;
       }
@@ -149,9 +232,19 @@ protected:
     }
     return true;
   }
+
+  template <typename ComType>
+  inline static void Drain(ComType& com) {
+    while (com.available()) {
+      com.read();
+    }
+  }
 };
 
 namespace I2C {
+
+constexpr const uint16_t kChunkSize = 0;
+
 class Reply final : public Com {
 public:
   Reply() = delete;
@@ -163,7 +256,7 @@ public:
       MsgType msg;
       auto callback = Reply::CallbackFunctionStore<MsgType>();
       (*callback)(msg);
-      Write(Wire, msg);
+      Write(Wire, msg, kChunkSize);
     };
     static decltype(_callback) callback_static = _callback;
     Wire.onRequest(callback_static);
@@ -179,7 +272,7 @@ public:
       auto callback =
           Reply::ClassCallbackMethodStore<ClassType, MsgType>();
       ((Reply::ClassPtrStore<ClassType>())->*callback)(msg);
-      Write(Wire, msg);
+      Write(Wire, msg, kChunkSize);
     };
     static decltype(_callback) callback_static = _callback;
     Wire.onRequest(callback_static);
@@ -233,7 +326,7 @@ public:
     Wire.requestFrom(address,
                      static_cast<uint8_t>(sizeof(MsgType) + 1),
                      static_cast<uint8_t>(true));
-    Read(Wire, msg, sizeof(MsgType));
+    Read(Wire, msg, timeout_ms);
   }
 
   static void RequestFrom(uint8_t address,
@@ -245,7 +338,7 @@ public:
     }
     Wire.setWireTimeout(timeout_ms);
     Wire.requestFrom(address, quantity, static_cast<uint8_t>(true));
-    Read(Wire, msg, 0);
+    Read(Wire, msg, quantity, kChunkSize, timeout_ms);
   }
 
   template<typename MsgType,
@@ -273,7 +366,7 @@ public:
     auto _callback = [](int bytes) {
       if (Wire.available()) {
         MsgType msg;
-        Read(Wire, msg, bytes);
+        Read(Wire, msg, bytes, kChunkSize, 0);
         auto callback = Subscriber::CallbackFunctionStore<MsgType>();
         (*callback)(common::move(msg), bytes);
       }
@@ -290,7 +383,7 @@ public:
     auto _callback = [](int bytes) {
       if (Wire.available()) {
         MsgType msg;
-        Read(Wire, msg, bytes);
+        Read(Wire, msg, bytes, kChunkSize, 0);
         auto callback =
             Subscriber::ClassCallbackMethodStore<ClassType, MsgType>();
         ((Subscriber::ClassPtrStore<ClassType>())->*callback)(
@@ -346,7 +439,7 @@ public:
     }
     Wire.setWireTimeout(timeout_ms);
     Wire.beginTransmission(address);
-    Write(Wire, msg);
+    Write(Wire, msg, kChunkSize);
     return (Wire.endTransmission());
   }
 };
@@ -355,7 +448,7 @@ public:
 
 namespace UART {
 
-constexpr uint16_t kWaitTimeMs = 20;
+constexpr uint16_t kChunkSize = 32;
 
 namespace internal {
 
@@ -363,53 +456,21 @@ template <typename SerialType>
 class UARTComBase : public Com {
 protected:
   template <typename MsgType>
-  static void Write(SerialType& com,
+  inline static void Write(SerialType& com,
                     const MsgType& msg, uint32_t timeout_ms) {
     com.setTimeout(timeout_ms);
-    Com::Write(com, msg);
+    Com::Write(com, msg, kChunkSize);
   }
 
-  template <typename MsgType,
-      typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>>
-  static bool Read(SerialType& com, MsgType& msg,
-                   bool blocking, uint32_t timeout_ms) {
+  template <typename MsgType>
+  inline static bool Read(SerialType& com, MsgType& msg,
+                          bool blocking, bool drain, uint32_t timeout_ms) {
     if (CheckAndWaitForMsgToBeAvilable(
-        com, blocking, timeout_ms, kWaitTimeMs)) {
+        com, 1, blocking, timeout_ms, kWaitTimeMs)) {
       com.setTimeout(timeout_ms);
-      Com::Read(com, msg, sizeof(MsgType));
-      return true;
-    }
-    return false;
-  }
-
-  static bool Read(SerialType& com, std::string& msg,
-                   bool blocking, uint32_t timeout_ms) {
-    msg.clear();
-    if (CheckAndWaitForMsgToBeAvilable(
-        com, blocking, timeout_ms, kWaitTimeMs)) {
-      com.setTimeout(timeout_ms);
-      while (com.available()) {
-        char c = com.read();
-        msg.push_back(c);
-      }
-      return true;
-    }
-    return false;
-  }
-
-  template <typename MsgType,
-      typename = std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
-      typename = std::enable_if_t<
-          decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
-  static bool Read(SerialType& com, MsgType& msg,
-                   bool blocking, uint32_t timeout_ms) {
-    if (CheckAndWaitForMsgToBeAvilable(
-        com, blocking, timeout_ms, kWaitTimeMs)) {
-      std::string encoded;
-      com.setTimeout(timeout_ms);
-      while (com.available()) {
-        char c = com.read();
-        encoded.push_back(c);
+      Com::Read(com, msg, 0, kChunkSize, timeout_ms);
+      if (drain) {
+        Drain(com);
       }
       return true;
     }
@@ -440,10 +501,10 @@ public:
   }
 
   template <typename MsgType>
-  static bool Read(MsgType& msg,
-                   bool blocking = false, uint32_t timeout_ms = 0) {
+  static bool Read(MsgType& msg, bool blocking = false, bool drain = false,
+                   uint32_t timeout_ms = 0) {
   return internal::UARTComBase<SoftwareSerial>::Read(
-      GetSerial(), msg, blocking, timeout_ms);
+      GetSerial(), msg, blocking, drain, timeout_ms);
   }
 
 private:
@@ -466,18 +527,24 @@ public:
           GetHardwareSerialPtr() = &Serial;
           break;
         }
+#if defined(UBRR1H)
         case 1: {
           GetHardwareSerialPtr() = &Serial1;
           break;
         }
+#endif
+#if defined(UBRR2H)
         case 2: {
           GetHardwareSerialPtr() = &Serial2;
           break;
         }
+#endif
+#if defined(UBRR2H)
         case 3: {
           GetHardwareSerialPtr() = &Serial3;
           break;
         }
+#endif
         default: {
           return false;
         }
@@ -498,10 +565,10 @@ public:
 
   template <typename MsgType,
       typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>>
-  static bool Read(MsgType& msg, bool blocking = false,
+  static bool Read(MsgType& msg, bool blocking = false, bool drain = false,
                    uint32_t timeout_ms = 0) {
     return internal::UARTComBase<HardwareSerial>::Read(
-        *GetHardwareSerialPtr(), msg, blocking, timeout_ms);
+        *GetHardwareSerialPtr(), msg, blocking, drain, timeout_ms);
   }
 
 private:
