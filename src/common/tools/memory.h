@@ -5,6 +5,7 @@ extern "C" char* sbrk(int incr);
 extern char *__brkval;
 #endif  // __arm__
 
+// Free RAM in bytes
 int FreeMemory() {
   char top;
 #ifdef __arm__
