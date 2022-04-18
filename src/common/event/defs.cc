@@ -62,21 +62,22 @@ void Event::Decode(const std::string& msg) {
   event_msg = msg.substr(idx, str_size);
 }
 
-StaticJsonDocument<256> Event::ToJson() const {
-  StaticJsonDocument<256> result;
+DynamicJsonDocument Event::ToJson() const {
+  DynamicJsonDocument result(256);
   result["metadata"]["error"] = error_code;
   result["metadata"]["level"] = static_cast<uint8_t>(level);
   result["metadata"]["name"] = source_name;
   result["msg"] = event_msg;
   result["timestamp"]["$date"]["$numberLong"] = time.ToString(
       common::Time::TimeOption::TIMESTAMP_MS);
+  result.shrinkToFit();
   return result;
 }
 
 void SensorReading::Encode(std::string& msg) const {
   size_t fixed_size = sizeof(time.Sec()) + sizeof(double);
-  msg.resize(fixed_size + sensor_id.size()
-             + sensor_type.size() + 2 * sizeof(uint32_t));
+  msg.resize(fixed_size + sensor_id.size() + unit.size() + data_type.size()
+             + sensor_type.size() + 4 * sizeof(uint32_t));
 
   std::string time_encoded, reading_encoded;
   common::com::Encode(time.Sec(), time_encoded);
@@ -94,6 +95,16 @@ void SensorReading::Encode(std::string& msg) const {
   common::com::Encode(static_cast<uint32_t>(sensor_type.size()), size_encoded);
   msg.replace(fixed_size, size_encoded.size(), size_encoded);
   msg.replace(fixed_size + sizeof(uint32_t), sensor_type.size(), sensor_type);
+
+  fixed_size += (sizeof(uint32_t) + sensor_type.size());
+  common::com::Encode(static_cast<uint32_t>(data_type.size()), size_encoded);
+  msg.replace(fixed_size, size_encoded.size(), size_encoded);
+  msg.replace(fixed_size + sizeof(uint32_t), data_type.size(), data_type);
+
+  fixed_size += (sizeof(uint32_t)) + data_type.size();
+  common::com::Encode(static_cast<uint32_t>(unit.size()), size_encoded);
+  msg.replace(fixed_size, size_encoded.size(), size_encoded);
+  msg.replace(fixed_size + sizeof(uint32_t), unit.size(), unit);
 }
 
 void SensorReading::Decode(const std::string& msg) {
@@ -120,15 +131,28 @@ void SensorReading::Decode(const std::string& msg) {
   common::com::Decode(msg.substr(idx, sizeof(uint32_t)), str_size);
   idx += sizeof(uint32_t);
   sensor_type = msg.substr(idx, str_size);
+  idx += sensor_type.size();
+
+  common::com::Decode(msg.substr(idx, sizeof(uint32_t)), str_size);
+  idx += sizeof(uint32_t);
+  data_type = msg.substr(idx, str_size);
+  idx += data_type.size();
+
+  common::com::Decode(msg.substr(idx, sizeof(uint32_t)), str_size);
+  idx += sizeof(uint32_t);
+  unit = msg.substr(idx, str_size);
 }
 
-StaticJsonDocument<128> SensorReading::ToJson() const {
-  StaticJsonDocument<128> result;
+DynamicJsonDocument SensorReading::ToJson() const {
+  DynamicJsonDocument result(256);
   result["metadata"]["sensor_id"] = sensor_id;
   result["metadata"]["sensor_type"] = sensor_type;
-  result["data"] = reading;
+  result["data_type"] = data_type;
+  result["data"]["reading"] = reading;
+  result["data"]["unit"] = unit;
   result["timestamp"]["$date"]["$numberLong"] = time.ToString(
       common::Time::TimeOption::TIMESTAMP_MS);
+  result.shrinkToFit();
   return result;
 }
 

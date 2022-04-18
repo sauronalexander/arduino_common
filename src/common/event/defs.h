@@ -35,7 +35,7 @@ struct Event {
 
   void Encode(std::string& msg) const;
   void Decode(const std::string& msg);
-  StaticJsonDocument<256> ToJson() const;
+  DynamicJsonDocument ToJson() const;
 };
 
 struct SensorReading {
@@ -44,11 +44,14 @@ struct SensorReading {
   std::string sensor_id{""};
   std::string sensor_type{""};
 
+  std::string data_type{""};
+
   double reading{0.0};
+  std::string unit{""};
 
   void Encode(std::string &msg) const;
   void Decode(const std::string& msg);
-  StaticJsonDocument<128> ToJson() const;
+  DynamicJsonDocument ToJson() const;
 };
 
 }  // namespace common
