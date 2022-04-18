@@ -11,7 +11,7 @@ namespace common::device {
 class Sensor {
 public:
   Sensor() = delete;
-  Sensor(const std::string & type, const std::string &id)
+  Sensor(const std::string &type, const std::string &id)
       : type_{type}, id_{id} {}
   Sensor(const Sensor &) = delete;
   Sensor &operator=(const Sensor &) = delete;

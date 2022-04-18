@@ -1,7 +1,5 @@
 #include "common/event/defs.h"
 
-#include <ArduinoJson.h>
-
 #include "common/com/specialized_encoding.h"
 
 namespace common {

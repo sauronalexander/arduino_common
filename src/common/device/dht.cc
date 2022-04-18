@@ -7,7 +7,7 @@ namespace common::device {
 const std::string DHT22::kSensorType = "DHT22";
 const std::vector<std::string> DHT22::kUnitName = {"°C", "%"};
 const std::vector<std::string> DHT22::kDataType = {"temperature", "humidity"};
-const uint32_t kMeasureTimeLimit = 2;
+const uint32_t DHT22::kMeasureTimeLimit = 2;
 
 DHT22::DHT22(const std::string &id, uint8_t pin)
     : Sensor{kSensorType, id} {
@@ -15,7 +15,7 @@ DHT22::DHT22(const std::string &id, uint8_t pin)
 }
 
 bool DHT22::UpdateReading() {
-  if ((common::Time::Now() - t_).Sec() < 2) {
+  if ((common::Time::Now() - t_).Sec() < kMeasureTimeLimit) {
     return false;
   }
   while (!device_->measure(&data_[0], &data_[1])) {
