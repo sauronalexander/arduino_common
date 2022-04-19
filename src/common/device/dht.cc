@@ -4,13 +4,13 @@
 
 namespace common::device {
 
-const std::string DHT22::kSensorType = "DHT22";
-const std::vector<std::string> DHT22::kUnitName = {"°C", "%"};
-const std::vector<std::string> DHT22::kDataType = {"temperature", "humidity"};
-const uint32_t DHT22::kMeasureTimeLimit = 2;
+PROGMEM const char *const DHT22::kSensorType = "DHT22";
+PROGMEM const char *const DHT22::kUnitName[] = {"°C", "%"};
+PROGMEM const char *const DHT22::kDataType[] = {
+    "temperature", "humidity"};
+PROGMEM const uint32_t DHT22::kMeasureTimeLimit = 2;
 
-DHT22::DHT22(const std::string &id, uint8_t pin)
-    : Sensor{kSensorType, id} {
+DHT22::DHT22(const std::string &id, uint8_t pin) : Sensor{id} {
   device_ = new DHT_nonblocking(pin, DHT_TYPE_22);
 }
 
@@ -25,8 +25,8 @@ bool DHT22::UpdateReading() {
   return true;
 }
 
-const std::string &DHT22::GetDataType(uint8_t datatype) const {
-  return kDataType.at(datatype);
+std::string DHT22::GetDataType(uint8_t datatype) const {
+  return kDataType[datatype];
 }
 
 bool DHT22::IsValid(uint8_t datatype_idx) const {
@@ -35,6 +35,10 @@ bool DHT22::IsValid(uint8_t datatype_idx) const {
 
 double DHT22::GetReading(uint8_t datatype_idx) const {
   return data_[datatype_idx];
+}
+
+std::string DHT22::GetSensorType() const {
+  return kSensorType;
 }
 
 SensorReading DHT22::GenerateSensorReading(uint8_t datatype_idx) const {

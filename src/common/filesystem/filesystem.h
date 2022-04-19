@@ -66,7 +66,7 @@ public:
     std::string path_{};
   };
 
-  static constexpr unsigned int kMaxBufferSize = 1024;
+  static PROGMEM constexpr unsigned int kMaxBufferSize = 1024;
 
 
   static bool Init(int chip_select);

@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <time.h>
 
+#include <avr/pgmspace.h>
+
 #include "common/stl/string.h"
 
 namespace common {
@@ -15,9 +17,9 @@ public:
   Time& operator=(const Time&) = default;
   Time& operator=(Time&&) = default;
 
-  static constexpr uint32_t kNsToMs = 1E6;
-  static constexpr uint64_t kNsToS = 1E9;
-  static constexpr uint32_t kMsToS = 1E3;
+  static PROGMEM constexpr uint32_t kNsToMs = 1E6;
+  static PROGMEM constexpr uint64_t kNsToS = 1E9;
+  static PROGMEM constexpr uint32_t kMsToS = 1E3;
 
   static Time Now();
 

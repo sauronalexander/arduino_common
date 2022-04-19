@@ -17,16 +17,17 @@ public:
   };
 
   bool UpdateReading() override;
-  const std::string &GetDataType(uint8_t datatype_idx = 0) const override;
+  std::string GetDataType(uint8_t datatype_idx = 0) const override;
   bool IsValid(uint8_t datatype_idx = 0) const override;
   SensorReading GenerateSensorReading(uint8_t datatype_idx = 0) const override;
   double GetReading(uint8_t datatype_idx = 0) const override;
+  std::string GetSensorType() const override;
 
 private:
-  static const std::string kSensorType;
-  static const std::vector<std::string> kUnitName;
-  static const std::vector<std::string> kDataType;
-  static const uint32_t kMeasureTimeLimit;
+  static PROGMEM const char *const kSensorType;
+  static PROGMEM const char *const kUnitName[];
+  static PROGMEM const char *const kDataType[];
+  static PROGMEM const uint32_t kMeasureTimeLimit;
 
   std::vector<float> data_{NAN, NAN};
   DHT_nonblocking* device_{nullptr};

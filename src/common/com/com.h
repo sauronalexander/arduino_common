@@ -40,7 +40,7 @@ public:
   }
 
 private:
-  static constexpr const uint8_t kStrMetadataSize{8};
+  static PROGMEM constexpr const uint8_t kStrMetadataSize{8};
 
   template <typename ComType>
   inline static void WriteBytesAndFlush(
@@ -137,7 +137,7 @@ private:
   }
 
 protected:
-  static constexpr const uint16_t kWaitTimeMs{5};
+  static PROGMEM constexpr const uint16_t kWaitTimeMs{5};
 
   template<typename MsgType>
   static auto HasEncodingMethodImpl(...) -> std::false_type;
