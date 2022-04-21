@@ -8,7 +8,7 @@
 
 #include "common/com/defs.h"
 #include "common/com/specialized_encoding.h"
-#include "common/stl/utility.h"
+#include "common/utility/utility.h"
 
 /*
  * This service uses I2C / TWI pins to communicate.

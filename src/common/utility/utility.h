@@ -9,4 +9,9 @@ typename std::remove_reference<T>::type&& move(T&& arg) {
   return static_cast<typename std::remove_reference<T>::type&&>(arg);
 }
 
-}  // namespace std
+template <typename T>
+T *AddressOf(T& obj) {
+  return &obj;
+}
+
+}  // namespace common
