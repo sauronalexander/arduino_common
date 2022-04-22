@@ -33,8 +33,8 @@ bool DHT22::IsValid(uint8_t datatype_idx) const {
   return !isnan(data_[datatype_idx]) && t_.Sec() > 0;
 }
 
-double DHT22::GetReading(uint8_t datatype_idx) const {
-  return data_[datatype_idx];
+Sensor::ReadingType DHT22::GetReading(uint8_t datatype_idx) const {
+  return ReadingType(double(data_[datatype_idx]));
 }
 
 std::string DHT22::GetSensorType() const {

@@ -5,11 +5,14 @@
 
 #include "common/event/defs.h"
 #include "common/stl/string.h"
+#include "common/utility/Variant.h"
 
 namespace common::device {
 
 class Sensor {
 public:
+  using ReadingType = common::Variant<double, int>;
+
   Sensor() = delete;
   Sensor( const std::string &id) : id_{id} {}
   Sensor(const Sensor &) = delete;
@@ -23,7 +26,7 @@ public:
   virtual bool IsValid(uint8_t datatype_idx = 0) const = 0;
   virtual SensorReading GenerateSensorReading(
       uint8_t datatype_idx = 0) const = 0;
-  virtual double GetReading(uint8_t datatype_idx = 0) const = 0;
+  virtual ReadingType GetReading(uint8_t datatype_idx = 0) const = 0;
   virtual std::string GetSensorType() const = 0;
 
   inline const std::string &GetId() const {
@@ -34,9 +37,12 @@ public:
     return t_;
   }
 
+  inline virtual void Clear() {
+    t_ = common::Time::FromSec(0);
+  }
+
 protected:
   static constexpr uint8_t kWaitTime{5};
-
   common::Time t_{common::Time::FromSec(0)};
   std::string id_{""};
 };

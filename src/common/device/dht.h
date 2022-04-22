@@ -20,7 +20,7 @@ public:
   std::string GetDataType(uint8_t datatype_idx = 0) const override;
   bool IsValid(uint8_t datatype_idx = 0) const override;
   SensorReading GenerateSensorReading(uint8_t datatype_idx = 0) const override;
-  double GetReading(uint8_t datatype_idx = 0) const override;
+  ReadingType GetReading(uint8_t datatype_idx = 0) const override;
   std::string GetSensorType() const override;
 
 private:
