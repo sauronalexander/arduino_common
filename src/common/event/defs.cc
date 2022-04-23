@@ -4,6 +4,32 @@
 
 namespace common {
 
+PROGMEM static const char *const kLogLevelTxt[LogLevel::LOGLEVEL_SIZE] = {
+    "DEBUG", "INFO", "WARN", "ERROR", "FATAL"
+};
+
+PROGMEM constexpr const char *kErrorTxt[Error::ERROR_SIZE] = {
+    "INFO", "WARN", "ERROR"
+};
+
+std::string ToString(LogLevel item) {
+  if (item != LogLevel::LOGLEVEL_SIZE) {
+    const char* p = reinterpret_cast<const char*>(
+        pgm_read_ptr(kLogLevelTxt + static_cast<int>(item) + 1));
+    return p;
+  }
+  return "";
+}
+
+std::string ToString(Error item) {
+  if (item != Error::ERROR_SIZE) {
+    const char* p = reinterpret_cast<const char*>(
+        pgm_read_ptr(kErrorTxt + static_cast<int>(item)));
+    return p;
+  }
+  return "";
+}
+
 void Event::Encode(std::string& msg) const {
   size_t fixed_size = sizeof(time.Sec()) + sizeof(level) + sizeof(error_code);
   msg.resize(event_msg.size() + source_name.size()

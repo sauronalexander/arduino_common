@@ -26,7 +26,9 @@ bool DHT22::UpdateReading() {
 }
 
 std::string DHT22::GetDataType(uint8_t datatype) const {
-  return kDataType[datatype];
+  const char* p = reinterpret_cast<const char*>(
+      pgm_read_ptr(kDataType + datatype));
+  return p;
 }
 
 bool DHT22::IsValid(uint8_t datatype_idx) const {
@@ -45,9 +47,12 @@ SensorReading DHT22::GenerateSensorReading(uint8_t datatype_idx) const {
   SensorReading reading;
   reading.time = t_;
   reading.sensor_id = id_;
-  reading.sensor_type = kSensorType;
+  reading.sensor_type = GetSensorType();
   reading.reading = data_[datatype_idx];
-  reading.unit = kUnitName[datatype_idx];
+  reading.data_type = GetDataType(datatype_idx);
+  const char* p = reinterpret_cast<const char*>(
+      pgm_read_ptr(kUnitName + datatype_idx));
+  reading.unit = p + (!datatype_idx);  // A hack for wide char °
   return reading;
 }
 

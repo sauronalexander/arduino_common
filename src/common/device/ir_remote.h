@@ -79,7 +79,7 @@ std::string IRNecRemote<_PIN>::GetSensorType() const {
 
 template <uint8_t _PIN>
 std::string IRNecRemote<_PIN>::GetDataType(uint8_t datatype_idx) const {
-  return std::string(kDataType);
+  return kDataType;
 }
 
 template <uint8_t _PIN>

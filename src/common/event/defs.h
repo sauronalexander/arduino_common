@@ -24,6 +24,9 @@ enum Error : uint8_t {
   ERROR_SIZE = 3,
 };
 
+std::string ToString(LogLevel item);
+std::string ToString(Error item);
+
 struct Event {
   Time time{Time::FromSec(0)};
 
