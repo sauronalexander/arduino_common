@@ -37,6 +37,20 @@ public:
       return *this;
     }
 
+    Path& operator+=(const char* other) {
+      path_ += other;
+      return *this;
+    }
+    Path& operator+=(const std::string& other) {
+      path_ += other;
+      return *this;
+    }
+
+    Path& operator+=(const Path& other) {
+      path_ += other.path_;
+      return *this;
+    }
+
     const std::string& string() const {
       return path_;
     }
