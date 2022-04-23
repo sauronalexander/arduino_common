@@ -139,25 +139,6 @@ private:
 protected:
   static PROGMEM constexpr const uint16_t kWaitTimeMs{5};
 
-  template<typename MsgType>
-  static auto HasEncodingMethodImpl(...) -> std::false_type;
-
-  template<typename MsgType,
-      typename = decltype(&MsgType::Encode),
-      typename = decltype(&MsgType::Decode)>
-  static auto HasEncodingMethodImpl(int) -> std::true_type;
-
-  // Specify namespace to prevent ADL failure
-  template<typename MsgType,
-      typename =
-      decltype(common::com::Encode(std::declval<const MsgType &>(),
-                                   std::declval<std::string &>())),
-      typename =
-      decltype(common::com::Decode(std::declval<const std::string &>(),
-                                   std::declval<MsgType &>())),
-      typename = std::nullptr_t>
-  static auto HasEncodingMethodImpl(int) -> std::true_type;
-
   template<typename ComType>
   inline static void Write(ComType &com,
                            const std::string &msg, uint16_t chunk_size) {
@@ -166,8 +147,7 @@ protected:
 
   template<typename ComType, typename MsgType,
       typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>,
-      typename = std::enable_if_t<
-          decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
+      typename = std::enable_if_t<IsEncodible<MsgType>::value>>
   inline static void Write(ComType &com, const MsgType &msg, uint16_t = 0) {
     std::string buffer;
     common::com::Encode(msg, buffer);
@@ -175,10 +155,8 @@ protected:
   }
 
   template<typename ComType, typename MsgType,
-      typename = std::enable_if_t<
-          decltype(HasEncodingMethodImpl<MsgType>(0))::value>,
-      typename =
-      std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
+      typename = std::enable_if_t<IsEncodible<MsgType>::value>,
+      typename = std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
       typename = std::nullptr_t>
   inline static void Write(
       ComType &com, const MsgType &msg, uint16_t chunk_size) {
@@ -196,9 +174,7 @@ protected:
 
   template<typename MsgType, typename ComType,
       typename = std::enable_if_t<std::is_arithmetic<MsgType>::value>,
-      typename =
-      std::enable_if_t<
-          decltype(HasEncodingMethodImpl<MsgType>(0))::value>>
+      typename = std::enable_if_t<IsEncodible<MsgType>::value>>
   inline static void Read(ComType &com, MsgType &msg, uint32_t timeout_ms,
                           int = 0, uint16_t = 0) {
     std::string buffer;
@@ -207,10 +183,8 @@ protected:
   }
 
   template<typename MsgType, typename ComType,
-      typename = std::enable_if_t<
-          decltype(HasEncodingMethodImpl<MsgType>(0))::value>,
-      typename =
-      std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
+      typename = std::enable_if_t<IsEncodible<MsgType>::value>,
+      typename = std::enable_if_t<!std::is_arithmetic<MsgType>::value>,
       typename = std::nullptr_t>
   inline static void Read(ComType &com, MsgType &msg, uint32_t timeout_ms,
                           int bytes, uint16_t chunk_size) {
@@ -342,8 +316,7 @@ public:
   }
 
   template<typename MsgType,
-      typename = std::enable_if_t<
-          decltype(HasEncodingMethodImpl<MsgType>(0))::value>,
+      typename = std::enable_if_t<IsEncodible<MsgType>::value>,
       typename = std::enable_if_t<!std::is_arithmetic<MsgType>::value>>
   static void RequestFrom(uint8_t address,
                           uint8_t quantity,
