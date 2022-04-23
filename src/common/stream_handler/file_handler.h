@@ -9,11 +9,11 @@
 
 namespace common {
 
-class FileHandler final : private StreamHandler {
+class FileHandler final : public StreamHandler {
 public:
   FileHandler() = delete;
-  FileHandler(const std::string &path);
-  FileHandler(const char *path);
+  FileHandler(const std::string &base_path, const std::string &name = "");
+  FileHandler(const char *base_path, const char *name = "");
 
   template <typename T,
             typename = std::enable_if_t<!std::is_same<T, std::string>::value>>
@@ -21,20 +21,20 @@ public:
     Log(std::to_string(msg));
   }
 
-  inline void Close() {
-    handler_.reset();
-  }
-
   void Log(const std::string &msg) override;
+  void Log(const Event &msg) override;
+  void LogStructured(const SensorReading &msg) override;
 
 private:
-  struct FileHandlerData {
-    FileHandlerData(const char *filename);
-    ~FileHandlerData();
-    ::File file;
-  };
+  void CheckAndRotate(const Time &t, bool structured);
+  void CreateDefaultFileHanderData();
 
-  std::auto_ptr<FileHandlerData> handler_{nullptr};
+  void LogImpl(const std::string &msg);
+
+  std::string current_hour_{""};
+  filesystem::Path base_path_{""};
+  std::string name_{""};
+  filesystem::Path file_path_{""};
 };
 
 } // namespace common

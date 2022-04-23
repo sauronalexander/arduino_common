@@ -8,7 +8,7 @@
 namespace common {
 
 template <uint8_t Col_, uint8_t Row_, uint8_t DotSize_ = LCD_5x8DOTS>
-class LCDHandler final : private StreamHandler {
+class LCDHandler final : public StreamHandler {
 public:
   static constexpr uint8_t Row = Row_;
   static constexpr uint8_t Col = Col_;
@@ -73,6 +73,18 @@ public:
     requires_clear_ = false;
     Log(msgs...);
     requires_clear_ = true;
+  }
+
+  void Log(const Event &msg) override {
+    std::string metadata = ToString(msg.level);
+    Log(ToString(msg.level).substr(0, 1) + " " +
+        std::to_string(msg.error_code) + " " +
+        msg.source_name,
+        msg.event_msg);
+  }
+
+  void LogStructured(const SensorReading &msg) override {
+    Log(msg.sensor_id, std::to_string(msg.reading) + msg.unit);
   }
 
 private:
