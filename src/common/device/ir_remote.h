@@ -10,7 +10,7 @@ template <uint8_t _PIN>
 class IRNecRemote final : public Sensor {
 public:
   static PROGMEM constexpr uint8_t PIN = _PIN;
-  IRNecRemote(const std::string &id);
+  explicit IRNecRemote(const std::string &id);
   ~IRNecRemote() = default;
 
   bool UpdateReading() override;
@@ -18,7 +18,7 @@ public:
   bool IsValid(uint8_t datatype_idx = 0) const override;
   std::string GetSensorType() const override;
   SensorReading GenerateSensorReading(uint8_t datatype_idx = 0) const override;
-  ReadingType GetReading(uint8_t datatype_idx = 0) const override;
+  DataType GetReading(uint8_t datatype_idx = 0) const override;
   void Clear() override;
 
 private:
@@ -88,8 +88,8 @@ bool IRNecRemote<_PIN>::IsValid(uint8_t datatype_idx) const {
 }
 
 template <uint8_t _PIN>
-Sensor::ReadingType IRNecRemote<_PIN>::GetReading(uint8_t datatype_idx) const {
-  return ReadingType(command_);
+DataType IRNecRemote<_PIN>::GetReading(uint8_t datatype_idx) const {
+  return DataType(command_);
 }
 
 template <uint8_t _PIN>
