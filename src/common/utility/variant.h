@@ -198,12 +198,17 @@ public:
 
 
   template <typename T, size_t Index = TypeList::template GetIndex<T>()>
-  bool HoldsAlternative() {
+  bool HoldsAlternative() const {
     return index_ == Index;
   }
 
   template <typename T, size_t Index = TypeList::template GetIndex<T>()>
   T *GetIf() {
+    return index_ == Index ? reinterpret_cast<T *>(data_) : nullptr;
+  }
+
+  template <typename T, size_t Index = TypeList::template GetIndex<T>()>
+  const T *GetIf() const {
     return index_ == Index ? reinterpret_cast<T *>(data_) : nullptr;
   }
 
