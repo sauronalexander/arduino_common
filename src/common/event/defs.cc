@@ -5,16 +5,14 @@
 namespace common {
 
 PROGMEM static const char *const kLogLevelTxt[LogLevel::LOGLEVEL_SIZE] = {
-    "DEBUG", "INFO", "WARN", "ERROR", "FATAL"
-};
+    "DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
 
-PROGMEM constexpr const char *kErrorTxt[Error::ERROR_SIZE] = {
-    "INFO", "WARN", "ERROR"
-};
+PROGMEM constexpr const char *kErrorTxt[Error::ERROR_SIZE] = {"INFO", "WARN",
+                                                              "ERROR"};
 
 std::string ToString(LogLevel item) {
   if (item != LogLevel::LOGLEVEL_SIZE) {
-    const char* p = reinterpret_cast<const char*>(
+    const char *p = reinterpret_cast<const char *>(
         pgm_read_ptr(kLogLevelTxt + static_cast<int>(item) + 1));
     return p;
   }
@@ -23,27 +21,26 @@ std::string ToString(LogLevel item) {
 
 std::string ToString(Error item) {
   if (item != Error::ERROR_SIZE) {
-    const char* p = reinterpret_cast<const char*>(
+    const char *p = reinterpret_cast<const char *>(
         pgm_read_ptr(kErrorTxt + static_cast<int>(item)));
     return p;
   }
   return "";
 }
 
-void Event::Encode(std::string& msg) const {
+void Event::Encode(std::string &msg) const {
   size_t fixed_size = sizeof(time.Sec()) + sizeof(level) + sizeof(error_code);
-  msg.resize(event_msg.size() + source_name.size()
-             + fixed_size + 2 * sizeof(uint32_t));
+  msg.resize(event_msg.size() + source_name.size() + fixed_size +
+             2 * sizeof(uint32_t));
 
   std::string time_encoded, level_encoded, error_code_encoded;
   common::com::Encode(time.Sec(), time_encoded);
   common::com::Encode(static_cast<uint8_t>(level), level_encoded);
   common::com::Encode(error_code, error_code_encoded);
   msg.replace(0, time_encoded.size(), time_encoded);
-  msg.replace(sizeof(time.Sec()),
-              level_encoded.size(), level_encoded);
-  msg.replace(sizeof(time.Sec()) + sizeof(level),
-              error_code_encoded.size(), error_code_encoded);
+  msg.replace(sizeof(time.Sec()), level_encoded.size(), level_encoded);
+  msg.replace(sizeof(time.Sec()) + sizeof(level), error_code_encoded.size(),
+              error_code_encoded);
   std::string size_encoded;
   common::com::Encode(static_cast<uint32_t>(source_name.size()), size_encoded);
   msg.replace(fixed_size, size_encoded.size(), size_encoded);
@@ -55,7 +52,7 @@ void Event::Encode(std::string& msg) const {
   msg.replace(fixed_size + sizeof(size_t), event_msg.size(), event_msg);
 }
 
-void Event::Decode(const std::string& msg) {
+void Event::Decode(const std::string &msg) {
   // TODO: Use better serialzation/deserialization methods.
   uint32_t idx{0};
   {
@@ -92,23 +89,22 @@ DynamicJsonDocument Event::ToJson() const {
   result["metadata"]["level"] = static_cast<uint8_t>(level);
   result["metadata"]["name"] = source_name;
   result["msg"] = event_msg;
-  result["timestamp"]["$date"]["$numberLong"] = time.ToString(
-      common::Time::TimeOption::TIMESTAMP_MS);
+  result["timestamp"]["$date"]["$numberLong"] =
+      time.ToString(common::Time::TimeOption::TIMESTAMP_MS);
   result.shrinkToFit();
   return result;
 }
 
-void SensorReading::Encode(std::string& msg) const {
+void SensorReading::Encode(std::string &msg) const {
   size_t fixed_size = sizeof(time.Sec()) + sizeof(double);
-  msg.resize(fixed_size + sensor_id.size() + unit.size() + data_type.size()
-             + sensor_type.size() + 4 * sizeof(uint32_t));
+  msg.resize(fixed_size + sensor_id.size() + unit.size() + data_type.size() +
+             sensor_type.size() + 4 * sizeof(uint32_t));
 
   std::string time_encoded, reading_encoded;
   common::com::Encode(time.Sec(), time_encoded);
   common::com::Encode(reading, reading_encoded);
   msg.replace(0, time_encoded.size(), time_encoded);
-  msg.replace(sizeof(time.Sec()),
-              reading_encoded.size(), reading_encoded);
+  msg.replace(sizeof(time.Sec()), reading_encoded.size(), reading_encoded);
 
   std::string size_encoded;
   common::com::Encode(static_cast<uint32_t>(sensor_id.size()), size_encoded);
@@ -131,7 +127,7 @@ void SensorReading::Encode(std::string& msg) const {
   msg.replace(fixed_size + sizeof(uint32_t), unit.size(), unit);
 }
 
-void SensorReading::Decode(const std::string& msg) {
+void SensorReading::Decode(const std::string &msg) {
   // TODO: Use better serialzation/deserialization methods.
   uint32_t idx{0};
   {
@@ -174,10 +170,10 @@ DynamicJsonDocument SensorReading::ToJson() const {
   result["data_type"] = data_type;
   result["data"]["reading"] = reading;
   result["data"]["unit"] = unit;
-  result["timestamp"]["$date"]["$numberLong"] = time.ToString(
-      common::Time::TimeOption::TIMESTAMP_MS);
+  result["timestamp"]["$date"]["$numberLong"] =
+      time.ToString(common::Time::TimeOption::TIMESTAMP_MS);
   result.shrinkToFit();
   return result;
 }
 
-}  // namespace common
+} // namespace common
