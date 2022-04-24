@@ -24,7 +24,7 @@ namespace common::com {
 class Com {
 public:
   static bool SlaveInit(uint8_t address) {
-    [[maybe_unused]] static auto initialized = [=]() -> bool {
+    static auto initialized = [=]() -> bool {
       Wire.begin(address);
       return true;
     }();
@@ -32,7 +32,7 @@ public:
   }
 
   static bool MasterInit() {
-    [[maybe_unused]] static auto initialized = []() -> bool {
+    static auto initialized = []() -> bool {
       Wire.begin();
       return true;
     }();

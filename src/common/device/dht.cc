@@ -57,7 +57,10 @@ SensorReading DHT22::GenerateSensorReading(uint8_t datatype_idx) const {
 }
 
 DHT22::~DHT22() {
-  delete device_;
+  if (device_) {
+    delete device_;
+    device_ = nullptr;
+  }
 }
 
 }  // namespace common::device
