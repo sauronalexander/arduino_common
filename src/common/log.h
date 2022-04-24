@@ -103,8 +103,16 @@ public:
   }
 
   void LogStructured(const SensorReading &msg) {
-    for (auto &handler : structured_handlers_) {
+    for (auto handler : structured_handlers_) {
       handler->LogStructured(msg);
+    }
+  }
+
+  void LogEvent(const Event &msg) {
+    for (auto& handler : handlers_) {
+      if (msg.level >= handler.second) {
+        handler.first->Log(msg);
+      }
     }
   }
 
