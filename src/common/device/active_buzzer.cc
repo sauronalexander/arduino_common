@@ -2,16 +2,16 @@
 
 namespace common::device {
 
-PROGMEM const char *const ActiveBuzzer::kActorType = "active_buzzer";
+PROGMEM const char *const ActiveBuzzer::kExecutorType = "active_buzzer";
 
 ActiveBuzzer::ActiveBuzzer(const std::string &id, uint8_t pin,
                            uint8_t threshold)
-    : Actor{id}, pin_{pin}, threshold_{threshold} {
+    : Executor{id}, pin_{pin}, threshold_{threshold} {
   pinMode(pin_, OUTPUT);
 }
 
 void ActiveBuzzer::Clear() {
-  Actor::Clear();
+  Executor::Clear();
   error_code_ = 0;
   digitalWrite(pin_, LOW);
 }
@@ -20,7 +20,7 @@ bool ActiveBuzzer::IsActive() const {
   return t_.Sec() > 0 && error_code_ >= threshold_;
 }
 
-Event ActiveBuzzer::GenerateActorEvent() const {
+Event ActiveBuzzer::GenerateExecutorEvent() const {
   Event ret;
   ret.time = t_;
   ret.error_code = error_code_;
@@ -30,7 +30,7 @@ Event ActiveBuzzer::GenerateActorEvent() const {
   return ret;
 }
 
-std::string ActiveBuzzer::GetActorType() const { return kActorType; }
+std::string ActiveBuzzer::GetExecutorType() const { return kExecutorType; }
 
 void ActiveBuzzer::SendCommand(const DeviceDataType &cmd) {
   if (auto data = cmd.GetIf<int>(); data) {

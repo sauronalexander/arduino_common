@@ -51,15 +51,15 @@ protected:
   std::string id_{""};
 };
 
-class Actor {
+class Executor {
 public:
-  Actor() = delete;
-  Actor(const std::string &id) : id_{id} {}
-  Actor(const Actor &) = delete;
-  Actor &operator=(const Actor &) = delete;
-  Actor(Actor &&) = default;
-  Actor &operator=(Actor &&) = default;
-  virtual ~Actor() = default;
+  Executor() = delete;
+  Executor(const std::string &id) : id_{id} {}
+  Executor(const Executor &) = delete;
+  Executor &operator=(const Executor &) = delete;
+  Executor(Executor &&) = default;
+  Executor &operator=(Executor &&) = default;
+  virtual ~Executor() = default;
 
   inline const std::string &GetId() const { return id_; }
 
@@ -67,8 +67,8 @@ public:
 
   inline virtual void Clear() { t_ = common::Time::FromSec(0); }
 
-  virtual std::string GetActorType() const = 0;
-  virtual Event GenerateActorEvent() const = 0;
+  virtual std::string GetExecutorType() const = 0;
+  virtual Event GenerateExecutorEvent() const = 0;
   virtual void SendCommand(const DeviceDataType &cmd) = 0;
   virtual bool IsActive() const = 0;
 
