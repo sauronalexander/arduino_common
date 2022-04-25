@@ -19,9 +19,9 @@ bool DHT22::UpdateReading() {
     return false;
   }
   while (!device_->measure(&data_[0], &data_[1])) {
-    t_ = common::Time::Now();
     delay(kWaitTime);
   }
+  t_ = common::Time::Now();
   return true;
 }
 
@@ -35,25 +35,18 @@ bool DHT22::IsValid(uint8_t datatype_idx) const {
   return !isnan(data_[datatype_idx]) && t_.Sec() > 0;
 }
 
-DataType DHT22::GetReading(uint8_t datatype_idx) const {
-  return DataType(double(data_[datatype_idx]));
+DeviceDataType DHT22::GetReading(uint8_t datatype_idx) const {
+  return DeviceDataType(double(data_[datatype_idx]));
 }
 
 std::string DHT22::GetSensorType() const {
   return kSensorType;
 }
 
-SensorReading DHT22::GenerateSensorReading(uint8_t datatype_idx) const {
-  SensorReading reading;
-  reading.time = t_;
-  reading.sensor_id = id_;
-  reading.sensor_type = GetSensorType();
-  reading.reading = data_[datatype_idx];
-  reading.data_type = GetDataType(datatype_idx);
+std::string DHT22::GetUnit(uint8_t datatype_idx) const {
   const char* p = reinterpret_cast<const char*>(
       pgm_read_ptr(kUnitName + datatype_idx));
-  reading.unit = p + (!datatype_idx);  // A hack for wide char °
-  return reading;
+  return p + (!datatype_idx);  // A hack for wide char °
 }
 
 DHT22::~DHT22() {

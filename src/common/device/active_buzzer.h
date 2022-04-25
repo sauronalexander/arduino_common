@@ -10,7 +10,7 @@ public:
 
   Event GenerateActorEvent() const override;
   std::string GetActorType() const override;
-  void SendCommand(const DataType &cmd) override;  // Accepts error_code
+  void SendCommand(const DeviceDataType &cmd) override;  // Accepts error_code
   bool IsActive() const override;
 
 private:

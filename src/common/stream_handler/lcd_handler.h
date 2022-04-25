@@ -84,7 +84,13 @@ public:
   }
 
   void LogStructured(const SensorReading &msg) override {
-    Log(msg.sensor_id, std::to_string(msg.reading) + msg.unit);
+    std::string data = "0";
+    if (msg.reading.HoldsAlternative<double>()) {
+      data = std::to_string(*msg.reading.GetIf<double>());
+    } else if (msg.reading.HoldsAlternative<int>()) {
+      data = std::to_string(*msg.reading.GetIf<int>());
+    }
+    Log(msg.sensor_id, data + msg.unit);
   }
 
 private:

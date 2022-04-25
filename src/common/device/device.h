@@ -9,8 +9,6 @@
 
 namespace common::device {
 
-using DataType = common::Variant<double, int>;
-
 // For input
 class Sensor {
 public:
@@ -25,11 +23,21 @@ public:
   virtual bool UpdateReading() = 0;
   virtual std::string GetDataType(uint8_t datatype_idx = 0) const = 0;
   virtual bool IsValid(uint8_t datatype_idx = 0) const = 0;
-  virtual SensorReading
-  GenerateSensorReading(uint8_t datatype_idx = 0) const = 0;
-
-  virtual DataType GetReading(uint8_t datatype_idx = 0) const = 0;
+  virtual std::string GetUnit(uint8_t datatype_idx = 0) const = 0;
+  virtual DeviceDataType
+  GetReading(uint8_t datatype_idx = 0) const = 0;
   virtual std::string GetSensorType() const = 0;
+
+  SensorReading GenerateSensorReading(uint8_t datatype_idx = 0) const {
+    SensorReading reading;
+    reading.time = t_;
+    reading.sensor_id = id_;
+    reading.sensor_type = GetSensorType();
+    reading.reading = GetReading(datatype_idx);
+    reading.data_type = GetDataType();
+    reading.unit = GetUnit(datatype_idx);
+    return reading;
+  }
 
   inline const std::string &GetId() const { return id_; }
 
@@ -61,7 +69,7 @@ public:
 
   virtual std::string GetActorType() const = 0;
   virtual Event GenerateActorEvent() const = 0;
-  virtual void SendCommand(const DataType &cmd) = 0;
+  virtual void SendCommand(const DeviceDataType &cmd) = 0;
   virtual bool IsActive() const = 0;
 
 protected:

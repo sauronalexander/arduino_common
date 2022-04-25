@@ -19,8 +19,8 @@ public:
   bool UpdateReading() override;
   std::string GetDataType(uint8_t datatype_idx = 0) const override;
   bool IsValid(uint8_t datatype_idx = 0) const override;
-  SensorReading GenerateSensorReading(uint8_t datatype_idx = 0) const override;
-  DataType GetReading(uint8_t datatype_idx = 0) const override;
+  std::string GetUnit(uint8_t datatype_idx = 0) const override;
+  DeviceDataType GetReading(uint8_t datatype_idx = 0) const override;
   std::string GetSensorType() const override;
 
 private:

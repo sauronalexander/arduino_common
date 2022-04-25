@@ -17,8 +17,8 @@ public:
   std::string GetDataType(uint8_t datatype_idx = 0) const override;
   bool IsValid(uint8_t datatype_idx = 0) const override;
   std::string GetSensorType() const override;
-  SensorReading GenerateSensorReading(uint8_t datatype_idx = 0) const override;
-  DataType GetReading(uint8_t datatype_idx = 0) const override;
+  std::string GetUnit(uint8_t datatype_idx = 0) const override;
+  DeviceDataType GetReading(uint8_t datatype_idx = 0) const override;
   void Clear() override;
 
 private:
@@ -78,30 +78,23 @@ std::string IRNecRemote<_PIN>::GetSensorType() const {
 }
 
 template <uint8_t _PIN>
-std::string IRNecRemote<_PIN>::GetDataType(uint8_t datatype_idx) const {
+std::string IRNecRemote<_PIN>::GetDataType(uint8_t) const {
   return kDataType;
 }
 
 template <uint8_t _PIN>
-bool IRNecRemote<_PIN>::IsValid(uint8_t datatype_idx) const {
+bool IRNecRemote<_PIN>::IsValid(uint8_t) const {
   return ready_;
 }
 
 template <uint8_t _PIN>
-DataType IRNecRemote<_PIN>::GetReading(uint8_t datatype_idx) const {
-  return DataType(command_);
+DeviceDataType IRNecRemote<_PIN>::GetReading(uint8_t) const {
+  return DeviceDataType(int(command_));
 }
 
 template <uint8_t _PIN>
-SensorReading IRNecRemote<_PIN>::GenerateSensorReading(
-    uint8_t datatype_idx) const {
-  SensorReading reading;
-  reading.time = t_;
-  reading.sensor_id = id_;
-  reading.sensor_type = kSensorType;
-  reading.reading = command_;
-  reading.unit = "";
-  return reading;
+std::string IRNecRemote<_PIN>::GetUnit(uint8_t) const {
+  return "";
 }
 
 template <uint8_t _PIN>

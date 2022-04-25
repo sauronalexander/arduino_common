@@ -5,6 +5,7 @@
 
 #include "common/stl/string.h"
 #include "common/time/time.h"
+#include "common/utility/variant.h"
 
 namespace common {
 
@@ -41,6 +42,8 @@ struct Event {
   DynamicJsonDocument ToJson() const;
 };
 
+using DeviceDataType= Variant<double, int>;
+
 struct SensorReading {
   Time time{Time::FromSec(0)};
 
@@ -49,7 +52,7 @@ struct SensorReading {
 
   std::string data_type{""};
 
-  double reading{0.0};
+  DeviceDataType reading;
   std::string unit{""};
 
   void Encode(std::string &msg) const;

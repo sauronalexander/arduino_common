@@ -96,15 +96,23 @@ DynamicJsonDocument Event::ToJson() const {
 }
 
 void SensorReading::Encode(std::string &msg) const {
-  size_t fixed_size = sizeof(time.Sec()) + sizeof(double);
+  size_t fixed_size = sizeof(time.Sec()) + sizeof(double) + 1;
   msg.resize(fixed_size + sensor_id.size() + unit.size() + data_type.size() +
              sensor_type.size() + 4 * sizeof(uint32_t));
 
-  std::string time_encoded, reading_encoded;
+  std::string time_encoded, reading_encoded(sizeof(double), '0');
   common::com::Encode(time.Sec(), time_encoded);
-  common::com::Encode(reading, reading_encoded);
+  if (reading.HoldsAlternative<double>()) {
+    msg[sizeof(time.Sec())] = 1;
+    common::com::Encode(*reading.GetIf<double>(), reading_encoded);
+  } else if (reading.HoldsAlternative<int>()) {
+    msg[sizeof(time.Sec())] = 2;
+    common::com::Encode(*reading.GetIf<int>(), reading_encoded);
+  } else {
+    msg[sizeof(time.Sec())] = 0;
+  }
   msg.replace(0, time_encoded.size(), time_encoded);
-  msg.replace(sizeof(time.Sec()), reading_encoded.size(), reading_encoded);
+  msg.replace(sizeof(time.Sec()) + 1, reading_encoded.size(), reading_encoded);
 
   std::string size_encoded;
   common::com::Encode(static_cast<uint32_t>(sensor_id.size()), size_encoded);
@@ -138,8 +146,18 @@ void SensorReading::Decode(const std::string &msg) {
   }
 
   {
-    common::com::Decode(msg.substr(idx, sizeof(reading)), reading);
-    idx += sizeof(reading);
+    char tmp = msg[idx++];
+    if (tmp == 1) {
+      reading = DeviceDataType(double(0.0));
+      common::com::Decode(msg.substr(idx, sizeof(double)),
+                          *reading.GetIf<double>());
+    } else if (tmp == 2) {
+      reading = DeviceDataType(int(0));
+      common::com::Decode(msg.substr(idx, sizeof(int)), *reading.GetIf<int>());
+    } else {
+      reading = DeviceDataType();
+    }
+    idx += sizeof(double);
   }
 
   uint32_t str_size;
@@ -168,7 +186,13 @@ DynamicJsonDocument SensorReading::ToJson() const {
   result["metadata"]["sensor_id"] = sensor_id;
   result["metadata"]["sensor_type"] = sensor_type;
   result["data_type"] = data_type;
-  result["data"]["reading"] = reading;
+  if (reading.HoldsAlternative<double>()) {
+    result["data"]["reading"] = *reading.GetIf<double>();
+  } else if (reading.HoldsAlternative<int>()) {
+    result["data"]["reading"] = *reading.GetIf<int>();
+  } else {
+    result["data"]["reading"] = 0;
+  }
   result["data"]["unit"] = unit;
   result["timestamp"]["$date"]["$numberLong"] =
       time.ToString(common::Time::TimeOption::TIMESTAMP_MS);
