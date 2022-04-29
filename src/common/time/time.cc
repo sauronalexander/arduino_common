@@ -1,11 +1,11 @@
 #include "common/time/time.h"
 
+#include <time.h>
+
 #include <DS3232RTC.h>
 
 #include <array>
 #include <memory>
-#include <time.h>
-#include <RTClib.h>
 
 namespace common {
 
@@ -39,6 +39,10 @@ void SyncAll() {
 DS3232RTC& GetDS3232RTC() {
   static DS3232RTC rtc;
   return rtc;
+}
+
+std::auto_ptr<int16_t> Time::GetRTCTemperature() {
+  return std::auto_ptr<int16_t>(new int16_t(GetDS3232RTC().temperature()));
 }
 
 bool Time::Init() {

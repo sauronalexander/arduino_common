@@ -22,6 +22,7 @@ public:
   static PROGMEM constexpr uint32_t kMsToS = 1E3;
 
   static Time Now();
+  static std::auto_ptr<int16_t> GetRTCTemperature();
 
   static bool Init();
   static void SyncSysTime(uint32_t time_sec, uint32_t time_nsec = 0);
