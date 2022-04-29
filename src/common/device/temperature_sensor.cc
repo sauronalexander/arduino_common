@@ -1,4 +1,4 @@
-#include "common/device/dht.h"
+#include "common/device/temperature_sensor.h"
 
 #include <DHT_nonblocking.h>
 
