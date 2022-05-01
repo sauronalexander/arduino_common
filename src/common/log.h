@@ -78,6 +78,31 @@ public:
   }
 
   template <typename ...Args>
+  void Debug(const std::string& msg) {
+    LogImpl(msg, 0, LogLevel::LOGLEVEL_DEBUG);
+  }
+
+  template <typename ...Args>
+  void Info(const std::string& msg) {
+    LogImpl(msg, 0, LogLevel::LOGLEVEL_INFO);
+  }
+
+  template <typename ...Args>
+  void Warn(uint8_t error_code, const std::string& msg) {
+    LogImpl(msg, error_code, LogLevel::LOGLEVEL_WARN);
+  }
+
+  template <typename ...Args>
+  void Error(uint8_t error_code, const std::string& msg) {
+    LogImpl(msg, error_code, LogLevel::LOGLEVEL_ERROR);
+  }
+
+  template <typename ...Args>
+  void Fatal(uint8_t error_code, const std::string& msg) {
+    LogImpl(msg, error_code, LogLevel::LOGLEVEL_FATAL);
+  }
+
+  template <typename ...Args>
   void Debug(const std::string& msg, const Args&... args) {
     LogImpl(msg, 0, LogLevel::LOGLEVEL_DEBUG, args...);
   }
@@ -129,17 +154,22 @@ private:
   }
 
   template <typename ...Args, uint8_t N = sizeof...(Args)>
-  void LogImpl(std::string msg, uint8_t error_code,
-               LogLevel level, const Args&... args) {
-    if (sizeof...(Args) || msg.find("%%") != std::string::npos) {
-      detail::FormatImpl(msg, args...);
-    }
+  void LogImpl(const std::string& msg, uint8_t error_code, LogLevel level) {
     Event event{Time::Now(), level, error_code, name_, common::move(msg)};
     for (auto &handler : handlers_) {
       if (handler.second <= level) {
         handler.first->Log(event);
       }
     }
+  }
+
+  template <typename ...Args, uint8_t N = sizeof...(Args)>
+  void LogImpl(std::string msg, uint8_t error_code,
+               LogLevel level, const Args&... args) {
+    if (sizeof...(Args) || msg.find("%%") != std::string::npos) {
+      detail::FormatImpl(msg, args...);
+    }
+    LogImpl(msg, error_code, level);
   }
 
   std::vector<std::pair<StreamHandler*, LogLevel>> handlers_{};
