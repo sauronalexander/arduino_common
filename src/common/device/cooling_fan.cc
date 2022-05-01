@@ -29,6 +29,7 @@ void CoolingFan::SendCommand(const DeviceDataType &cmd) {
   if (auto data = cmd.GetIf<double>(); data) {
     cmd_ = std::min(*data, 100.0);
     cmd_ = std::max(cmd_, 0.0);
+    cmd_ *= kMaxVoltage;
     analogWrite(pin_, cmd_);
     t_ = common::Time::Now();
     return;

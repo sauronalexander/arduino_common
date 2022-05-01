@@ -15,6 +15,7 @@ public:
 private:
   uint8_t pin_;
   static PROGMEM const char *const kExecutorType;
+  static PROGMEM constexpr double kMaxVoltage{12.0};
   double cmd_{0.0};
 };
 
