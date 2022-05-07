@@ -24,8 +24,7 @@ public:
   virtual std::string GetDataType(uint8_t datatype_idx = 0) const = 0;
   virtual bool IsValid(uint8_t datatype_idx = 0) const = 0;
   virtual std::string GetUnit(uint8_t datatype_idx = 0) const = 0;
-  virtual DeviceDataType
-  GetReading(uint8_t datatype_idx = 0) const = 0;
+  virtual DeviceDataType GetReading(uint8_t datatype_idx = 0) const = 0;
   virtual std::string GetSensorType() const = 0;
 
   SensorReading GenerateSensorReading(uint8_t datatype_idx = 0) const {
