@@ -29,7 +29,7 @@ std::string CoolingFan::GetExecutorType() const { return kExecutorType; }
 void CoolingFan::SendCommand(const DeviceDataType &cmd) {
   if (auto data = cmd.GetIf<double>(); data) {
     cmd_ = *data;
-    auto voltage = ::common::math::PROGMEMInterpolate(
+    auto voltage = ::common::math::PROGMEMSysIdInterpolate(
         sys_id_data_, sys_id_data_len_, *data);
     analogWrite(pin_, voltage / kMaxVoltage * kMaxDigitalOutput);
     t_ = common::Time::Now();

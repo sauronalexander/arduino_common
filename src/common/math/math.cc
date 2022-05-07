@@ -22,7 +22,7 @@ double Interpolate(const std::vector<std::pair<double, double>> &data,
   return (x - (it - 1)->first) * k + (it - 1)->second;
 }
 
-float PROGMEMInterpolate(const float *const data, size_t len, double val) {
+float PROGMEMSysIdInterpolate(const float *const data, size_t len, double val) {
   if (len <= 1) {
     return 0.0;
   }
